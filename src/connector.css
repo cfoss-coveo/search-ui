@@ -24,28 +24,31 @@
 
 /*
  * Render heading level 2 the same size as the heading level 4
- * To be replaced by out-of-the-box GCWeb
+ * To be added and replaced by out-of-the-box GCWeb
  */
 .page-type-search h2 {
 	font-size: 1.1em;
 }
 
 /*
+ * Render heading level 2 the same size as the heading level 4
+ * To be added and replaced by out-of-the-box GCWeb
+ */
+.page-type-search .location li, .page-type-search cite a {
+	word-break: break-word;
+}
+
+/*
  * Add top margin to alert
- * To be replaced by out-of-the-box GCWeb
+ * To be added and replaced by out-of-the-box GCWeb
  */
 .page-type-search .alert {
 	margin-top: 30px;
 }
 
-.page-type-search .did-you-mean {
-	font-weight: 600;
-	margin-left: 15px;
-}
-
 /*
  * Pagination styles 
- * To be replaced by out-of-the-box GCWeb
+ * To be added and replaced by out-of-the-box GCWeb
  */
 .pager>li>button, .pagination>li>button {
 	cursor: pointer;

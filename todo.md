@@ -2,10 +2,11 @@
 
 This list contains outstanding suggestions / non-critical issues identified in previously merged pull requests. The following items do need to be addressed in due time.
 
+- [ ] Remove the need for having a CSS file to be handled by GCWeb instead!
+- [ ] Add missing pieces such as "error message", "no result" and "did you mean" into our reference implementation as an example
 - [ ] Potentially come up with an easier way to test locally
 - [ ] Add Expected output on test pages (HTML) and use Jekyll highlights
 - [ ] Finish proper development of Suggestion box (type-ahead)
-- [ ] Remove the need for having a CSS file to be handled by GCWeb instead
 - [ ] Add includes of JS (src) files in a baked in Jekyll variables instead of hardcoded
 - [ ] Align search pages with new GCWeb template and/or define new GCWeb templates
 - [ ] Ensure no section or heading or any element with semantic is added alone/empty on the page 
@@ -15,7 +16,6 @@ This list contains outstanding suggestions / non-critical issues identified in p
 - [ ] Improve caching of variable that are used multiple times in the script, such as: window.location, then window.location.pathname
 - [ ] Revisit how dates are handled for output formats (need an array of months?)
 - [ ] Make IDs configurable for "suggestion", "result-list", "result-link", "query-summary", "pager"
-- [ ] Add missing pieces such as "error message", "no result" and "did you mean" into our reference implementation as an example
 - [ ] Revisit customEvent to potentially be scoped to the search-ui element instead of document
 - [ ] Document customEvent
 - [ ] Improve warning message when Headless doesn't load
