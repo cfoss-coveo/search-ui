@@ -8,13 +8,13 @@ pageclass: page-type-search
 pageType: recherche
 share: false
 deptfeature: false
-dateModified: 2024-03-14
-stylesheets:
+dateModified: 2024-06-05
+css:
     - href: "../src/connector.css"
 ---
 
 <!--FORM-->
-<form method="GET" action="#wb-land" class="mrgn-tp-sm">
+<form id="gc-searchbox" class="mrgn-tp-sm">
 	<div class="input-group mrgn-tp-lg">
 		<label class="wb-inv" for="sch-inp-ac">Rechercher les sites web du Gouvernment du Canada</label>
 		<input id="sch-inp-ac" class="form-control" value="" name="q" autocomplete="off" spellcheck="false" type="search" data-fusion-query="safe" aria-describedby="gc-pi">
@@ -29,7 +29,8 @@ stylesheets:
 <div data-gc-search='{
 	"searchHub": "canada-gouv-public-websites",
 	"organizationId": "employmentandsocialdevelopmentcanadanonproduction14o5d9wry",
-	"accessToken":"XYZ"
+	"accessToken":"XYZ",
+	"originLevel3": "/fr/sr/srb.html"
 }'></div>
 <p class="text-center small"><a href="sra-fr.html">Effectuer une recherche avancée</a></p>
 

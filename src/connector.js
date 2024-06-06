@@ -72,8 +72,8 @@ let lastCharKeyUp;
 
 // UI Elements placeholders 
 let searchBoxElement;
-let formElement = document.querySelector( 'form[action="#wb-land"]' );
-let resultsSection = document.querySelector( '.results' );
+let formElement = document.querySelector( '#gc-searchbox, form[action="#wb-land"]' );
+let resultsSection = document.querySelector( '#wb-land' );
 let resultListElement = document.querySelector( '#result-list' );
 let querySummaryElement = document.querySelector( '#query-summary' );
 let pagerElement = document.querySelector( '#pager' );
@@ -239,11 +239,11 @@ function initTpl() {
 	if ( !didYouMeanTemplateHTML ) {
 		if ( lang === "fr" ) {
 			didYouMeanTemplateHTML = 
-				`<p class="h5 mrgn-lft-md">Rechercher plutôt <button class="btn btn-link p-0" type="button">%[correctedQuery]</button> ?</p>`;
+				`<p class="h5 mrgn-lft-md">Rechercher plutôt <button class="btn btn-lg btn-link p-0" type="button">%[correctedQuery]</button> ?</p>`;
 		}
 		else {
 			didYouMeanTemplateHTML = 
-				`<p class="h5 mrgn-lft-md">Did you mean <button class="btn btn-link p-0" type="button">%[correctedQuery]</button> ?</p>`;
+				`<p class="h5 mrgn-lft-md">Did you mean <button class="btn btn-lg btn-link p-0" type="button">%[correctedQuery]</button> ?</p>`;
 		}
 	}
 
@@ -314,7 +314,6 @@ function initTpl() {
 	if ( !resultsSection ) {
 		resultsSection = document.createElement( "section" );
 		resultsSection.id = "wb-land";
-		resultsSection.classList.add( "results" );
 
 		baseElement.prepend( resultsSection );
 	}
@@ -339,6 +338,7 @@ function initTpl() {
 	if ( !resultListElement ) {
 		resultListElement = document.createElement( "div" );
 		resultListElement.id = "result-list";
+		resultListElement.classList.add( "results" );
 
 		resultsSection.append( resultListElement );
 	}
@@ -397,9 +397,6 @@ function initTpl() {
 			} );
 		}
 	}
-
-	// Now that the templates are iniated, update the user when idle of further change to the region
-	resultsSection.setAttribute( "aria-live", "polite" );
 }
 
 // Initiate headless engine
@@ -870,10 +867,6 @@ function updateResultListState( newState ) {
 			resultListElement.appendChild( sectionNode );
 		} );
 	}
-	else if ( resultListState.firstSearchExecuted && !resultListState.hasResults && !resultListState.hasError ) {
-		resultListElement.innerHTML = noResultTemplateHTML;
-		focusToView();
-	}
 }
 
 // Update heading that has number of results displayed
@@ -894,14 +887,14 @@ function updateQuerySummaryState( newState ) {
 				.replace( '%[query]', querySummaryState.query )
 				.replace( '%[queryDurationInSeconds]', querySummaryState.durationInSeconds.toLocaleString( params.lang ) );
 		}
+		else {
+			querySummaryElement.innerHTML = noResultTemplateHTML;
+		}
+		focusToView();
 	}
 	else if ( querySummaryState.hasError ) {
 		querySummaryElement.textContent = "";
 		querySummaryElement.innerHTML = resultErrorTemplateHTML;
-	}
-
-	
-	if( !querySummaryState.isLoading && querySummaryElement.textContent !== "" ) {
 		focusToView();
 	}
 }
@@ -973,7 +966,7 @@ function updatePagerState( newState ) {
 
 		if ( page === pagerState.currentPage ) {
 			liNode.classList.add( "active" );
-			buttonNode.disabled = true;
+			buttonNode.setAttribute( "aria-current", "page" );
 		}
 
 		buttonNode.onclick = () => {
