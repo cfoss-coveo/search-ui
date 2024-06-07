@@ -27,25 +27,21 @@ In the medium to long term, some activities may take place related to:
 - porting of some parts of the codebase to GCWeb;
 - addition of machine learning features.
 
+For more details, please [consult full checklist of to do items](todo.md).
+
 ## Releases and API
 
 All changes contributed through Pull requests will be packaged as releases. Releases are completed through the "Releases" tab in this GitHub repository; then, deployment to MWS follows the reguar release management cycle accordingly.
 
-Each new verion of this project is defined based on an evaluaton of the impacts of changes against any formerly up-to-date Search UI implementation. The scope constitutes of all files within the "dist" folder (distribution files), which are JavaScript scripts and CSS styles.
+Each new verion of this project is defined based on an evaluaton of the impacts of changes against any formerly up-to-date Search UI implementation. The scope constitutes of all files within the "dist" folder (distribution files), which are JavaScript scripts and CSS styles. The usage of feautures can also be considered as part of the evaluation of impact. For example, a feature of the Javascript which is known by certitude to have never been used in a production environment, wouldn't cause any breaking change if modified and therefore, wouldn't generate a major version.
 
 Search UI follows [Semantic Versioning 2.0.0](https://semver.org/)
 
 ---
 
-## To do
-
-[Consult full checklist of to do items](todo.md)
-
----
-
 ## Getting started
 
-This rubric is for developers
+This rubric is for developers.
 
 ### Build files
 
