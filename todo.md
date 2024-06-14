@@ -7,7 +7,7 @@ This list contains outstanding suggestions / non-critical issues identified in p
 - [ ] Potentially come up with an easier way to test locally
 - [ ] Add Expected output on test pages (HTML) and use Jekyll highlights
 - [ ] Finish proper development of Suggestion box (type-ahead)
-- [ ] Add includes of JS (src) files in a baked in Jekyll variables instead of hardcoded
+- [x] Add includes of JS (src) files in a baked in Jekyll variables instead of hardcoded
 - [ ] Align search pages with new GCWeb template and/or define new GCWeb templates
 - [ ] Ensure no section or heading or any element with semantic is added alone/empty on the page 
 - [ ] Improve the form code to not rely on an action that points to an anchor for a dynamically added element, which doesn't exist on the page prior to JS
@@ -22,5 +22,5 @@ This list contains outstanding suggestions / non-critical issues identified in p
 - [ ] "numberOfPages: 9" and "automaticallyCorrectQuery: false" should be configurable through parameters
 - [ ] Revisit the need to search for postscript and rich text documents (ps and rtf. Are they needed? What's the usecase?
 - [ ] Revisit the "window.location.origin.startsWith( 'file://' )" condition
-- [ ] Investigate Pagination styles when testing from GitHub
-- [ ] Investigate #wb-land focus on Advanced search
+- [x] Investigate Pagination styles when testing from GitHub
+- [x] Investigate #wb-land focus on Advanced search
