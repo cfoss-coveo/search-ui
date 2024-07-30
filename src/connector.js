@@ -228,11 +228,11 @@ function initTpl() {
 	if ( !querySummaryTemplateHTML ) {
 		if ( lang === "fr" ) {
 			querySummaryTemplateHTML = 
-				`<h2>%[numberOfResults] résultats de recherche pour "%[query]"</h2>`;
+				`%[numberOfResults] résultats de recherche pour "%[query]"`;
 		}
 		else {
 			querySummaryTemplateHTML = 
-				`<h2>%[numberOfResults] search results for "%[query]"</h2>`;
+				`%[numberOfResults] search results for "%[query]"`;
 		}
 	}
 
@@ -250,11 +250,11 @@ function initTpl() {
 	if ( !noQuerySummaryTemplateHTML ) {
 		if ( lang === "fr" ) {
 			noQuerySummaryTemplateHTML = 
-				`<h2>%[numberOfResults] résultats de recherche</h2>`;
+				`%[numberOfResults] résultats de recherche`;
 		}
 		else {
 			noQuerySummaryTemplateHTML = 
-				`<h2>%[numberOfResults] search results</h2>`;
+				`%[numberOfResults] search results`;
 		}
 	}
 
@@ -398,7 +398,9 @@ function initTpl() {
 		}
 	}
 }
-
+function sanitizeQuery(q) {
+	return q.replace(/<[^>]*>?/gm, '');
+}
 // Initiate headless engine
 function initEngine() {
 	headlessEngine = buildSearchEngine( {
@@ -430,6 +432,9 @@ function initEngine() {
 						requestContent.enableQuerySyntax = params.isAdvancedSearch;
 						requestContent.analytics.originLevel3 = params.originLevel3;
 						request.body = JSON.stringify( requestContent );
+						let q = requestContent.q;
+						requestContent.q = sanitizeQuery(q);
+						request.body = JSON.stringify(requestContent);
 					}
 				} catch {
 					console.warn( "No Headless Engine Loaded." );
@@ -517,7 +522,7 @@ function initEngine() {
 			}
 		}
 		if ( urlParams.dmn ) {
-			aqString += ' @hostname="' + urlParams.dmn + '"';
+			aqString += ' @uri="' + urlParams.dmn + '"';
 		}
 
 		if ( urlParams.sort ) {
@@ -896,11 +901,16 @@ function updateQuerySummaryState( newState ) {
 		querySummaryElement.textContent = "";
 		if ( querySummaryState.total > 0 ) {
 			let numberOfResults = querySummaryState.total.toLocaleString( params.lang );
-
-			querySummaryElement.innerHTML = ( ( querySummaryState.query !== "" && !params.isAdvancedSearch ) ? querySummaryTemplateHTML : noQuerySummaryTemplateHTML )
-				.replace( '%[numberOfResults]', numberOfResults )
-				.replace( '%[query]', DOMPurify.sanitize( querySummaryState.query ) )
-				.replace( '%[queryDurationInSeconds]', querySummaryState.durationInSeconds.toLocaleString( params.lang ) );
+			// Create the <h2> element
+			const hTwoAnchor = document.createElement("h2");
+			// Generate the text content
+			const querySummaryText = ((querySummaryState.query !== "" && !params.isAdvancedSearch) ? querySummaryTemplateHTML : noQuerySummaryTemplateHTML)
+				.replace('%[numberOfResults]', numberOfResults)
+				.replace('%[query]', querySummaryState.query)
+				.replace('%[queryDurationInSeconds]', querySummaryState.durationInSeconds.toLocaleString(params.lang));
+			hTwoAnchor.textContent = querySummaryText;
+			querySummaryElement.innerHTML = "";
+			querySummaryElement.appendChild(hTwoAnchor);
 		}
 		else {
 			querySummaryElement.innerHTML = noResultTemplateHTML;
