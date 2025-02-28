@@ -31,11 +31,12 @@ const defaults = {
 	"searchBoxQuery": "#sch-inp-ac",
 	"lang": "en",
 	"numberOfSuggestions": 0,
-	"unsupportedSuggestions": false,
+	"minimumCharsForSuggestions": 2,
 	"enableHistoryPush": true,
 	"isContextSearch": false,
 	"isAdvancedSearch": false,
-	"originLevel3": window.location.origin + winPath
+	"originLevel3": window.location.origin + winPath,
+	"pipeline": ""
 };
 let lang = document.querySelector( "html" )?.lang;
 let paramsOverride = baseElement ? JSON.parse( baseElement.dataset.gcSearch ) : {};
@@ -69,6 +70,12 @@ let querySummaryState;
 let didYouMeanState;
 let pagerState;
 let lastCharKeyUp;
+let activeSuggestion = 0;
+let activeSuggestionWaitMouseMove = true;
+
+// Firefox patch
+let isFirefox = navigator.userAgent.indexOf( "Firefox" ) !== -1;
+let waitForkeyUp = false;
 
 // UI Elements placeholders 
 let searchBoxElement;
@@ -112,8 +119,6 @@ function initSearchUI() {
 	// Final parameters object
 	params = Object.assign( defaults, paramsDetect, paramsOverride );
 
-	searchBoxElement = document.querySelector( params.searchBoxQuery );
-
 	// Update the URL params and the hash params on navigation
 	window.onpopstate = () => {
 		var match,
@@ -128,12 +133,12 @@ function initSearchUI() {
 		// Ignore linting errors in regard to affectation instead of condition in the loops
 		// jshint -W084
 		while ( match = search.exec( query ) ) {	// eslint-disable-line no-cond-assign
-			urlParams[ decode(match[ 1 ] ) ] = DOMPurify.sanitize( decode( match[ 2 ] ) );
+			urlParams[ decode(match[ 1 ] ) ] = stripHtml( decode( match[ 2 ] ) );
 		}
 		query = window.location.hash.substring( 1 );
 
 		while ( match = search.exec( query ) ) {	// eslint-disable-line no-cond-assign
-			hashParams[ decode( match[ 1 ] ) ] = DOMPurify.sanitize( decode( match[ 2 ] ) );
+			hashParams[ decode( match[ 1 ] ) ] = stripHtml( decode( match[ 2 ] ) );
 		}
 		// jshint +W084
 	};
@@ -163,14 +168,14 @@ function initTpl() {
 			resultTemplateHTML = 
 				`<h3><a class="result-link" href="%[result.clickUri]" data-dtm-srchlnknm="%[index]">%[result.title]</a></h3> 
 				<ul class="context-labels"><li>%[result.raw.author]</li></ul> 
-				<ol class="location"><li>%[result.breadcrumb]</li></ol> 
+				%[result.breadcrumb] 
 				<p><time datetime="%[short-date-fr]" class="text-muted">%[long-date-fr]</time> - %[highlightedExcerpt]</p>`;
 		}
 		else {
 			resultTemplateHTML = 
 				`<h3><a class="result-link" href="%[result.clickUri]" data-dtm-srchlnknm="%[index]">%[result.title]</a></h3> 
 				<ul class="context-labels"><li>%[result.raw.author]</li></ul> 
-				<ol class="location"><li>%[result.breadcrumb]</li></ol> 
+				%[result.breadcrumb]
 				<p><time datetime="%[short-date-en]" class="text-muted">%[long-date-en]</time> - %[highlightedExcerpt]</p>`;
 		}
 	}
@@ -353,50 +358,26 @@ function initTpl() {
 	}
 
 	// auto-create suggestions element
-	if ( !suggestionsElement && searchBoxElement && params.unsupportedSuggestions && params.numberOfSuggestions > 0 ) {
+	searchBoxElement = document.querySelector( params.searchBoxQuery );
+	if ( !suggestionsElement && searchBoxElement && params.numberOfSuggestions > 0 ) {
+		searchBoxElement.role = "combobox";
+		searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
+
 		suggestionsElement = document.createElement( "ul" );
 		suggestionsElement.id = "suggestions";
-		suggestionsElement.classList.add( "rough-experimental", "query-suggestions" );
+		suggestionsElement.role = "listbox";
+		suggestionsElement.classList.add( "query-suggestions" );
 
 		searchBoxElement.after( suggestionsElement );
+		searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
 	}
 
-	// Query suggestions
-	if ( suggestionsElement ) {
-
-		// Remove unsupported query suggestion if on production (www.canada.ca)
-		if( window.location.hostname === "www.canada.ca" ) {
-			suggestionsElement.remove();
+	// Close query suggestion box if click elsewhere
+	document.addEventListener( "click", function( evnt ) {
+		if ( suggestionsElement && ( evnt.target.className !== "suggestion-item" && evnt.target.id !== searchBoxElement?.id ) ) {
+			closeSuggestionsBox();
 		}
-
-		// Add an alert banner to clearly state that the Query suggestion feature is at a rough experimental state
-		else {
-			const firstH1 = document.querySelector( "main h1:first-child" );
-			let roughExperimentAlert = document.createElement( "section" );
-
-			roughExperimentAlert.classList.add( "alert", "alert-danger" );
-
-			if ( lang === "fr" ) {
-				roughExperimentAlert.innerHTML = 
-					`<h2 class="h3">Avis de fonctionnalité instable</h2>
-					<p>Cette page utilise une fonctionnalité expérimentale pouvant contenir des problèmes d'accessibilité et/ou de produire des effets indésirables qui peuvent altérer l'expérience de l'utilisateur.</p>`;
-			}
-			else {
-				roughExperimentAlert.innerHTML = 
-					`<h2 class="h3">Unstable feature notice</h2>
-					<p>This page leverages an experimental feature subject to contain accessibility issues and/or to produce unwanted behavior which may alter the user experience.</p>`;
-			}
-
-			firstH1.after( roughExperimentAlert );
-
-			// Remove Query suggestion if click elsewhere
-			document.addEventListener( "click", function( evnt ) {
-				if ( suggestionsElement && ( evnt.target.className !== "suggestion-item" && evnt.target.id !== "sch-inp-ac" ) ) {
-					suggestionsElement.hidden = true;
-				}
-			} );
-		}
-	}
+	} );
 }
 function sanitizeQuery(q) {
 	return q.replace(/<[^>]*>?/gm, '');
@@ -411,14 +392,21 @@ function initEngine() {
 			search: {
 				locale: params.lang,
 				searchHub: params.searchHub,
+				pipeline: params.pipeline
 			},
 			preprocessRequest: ( request, clientOrigin ) => {
 				try {
-					if ( clientOrigin === 'analyticsFetch' ) {
+					if( clientOrigin === 'analyticsFetch' || clientOrigin === 'analyticsBeacon' ) {
 						let requestContent = JSON.parse( request.body );
 
 						// filter user sensitive content
 						requestContent.originLevel3 = params.originLevel3;
+
+						// documentAuthor cannot be longer than 128 chars based on search platform
+						if ( requestContent.documentAuthor ) {
+							requestContent.documentAuthor = requestContent.documentAuthor.substring( 0, 128 );
+						}
+						
 						request.body = JSON.stringify( requestContent );
 
 						// Event used to expose a data layer when search events occur; useful for analytics
@@ -461,17 +449,13 @@ function initEngine() {
 					open: '<strong>',
 					close: '</strong>',
 				},
-				correctionDelimiters: {
-					open: '<em>',
-					close: '</em>',
-				},
 			},
 		}
 	} );
 
 	resultListController = buildResultList( headlessEngine, {
 		options: {
-			fieldsToInclude: [ "author", "date", "language", "urihash", "objecttype", "collection", "source", "permanentid", "displaynavlabel" ]
+			fieldsToInclude: [ "author", "date", "language", "urihash", "objecttype", "collection", "source", "permanentid", "displaynavlabel", "hostname" ]
 		}
 	} );
 	querySummaryController = buildQuerySummary( headlessEngine );
@@ -630,10 +614,10 @@ function initEngine() {
 	}
 
 	if ( hashParams.q && searchBoxElement ) {
-		searchBoxElement.value = DOMPurify.sanitize( hashParams.q );
+		searchBoxElement.value = stripHtml( hashParams.q );
 	}
 	else if ( urlParams.q && searchBoxElement ) {
-		searchBoxElement.value = DOMPurify.sanitize( urlParams.q );
+		searchBoxElement.value = stripHtml( urlParams.q );
 	}
 
 	// Get the query portion of the URL
@@ -703,16 +687,58 @@ function initEngine() {
 
 	// Listen to "Enter" key up event for search suggestions
 	if ( searchBoxElement ) {
-		searchBoxElement.onkeyup = ( e ) => {
-			lastCharKeyUp = e.keyCode;
+		searchBoxElement.onkeydown = ( e ) => {
+			// Enter
+			if ( e.keyCode === 13 && ( activeSuggestion !== 0 && suggestionsElement && !suggestionsElement.hidden ) ) {
+				closeSuggestionsBox();
+				e.preventDefault();
+			}
+			// Escape or Tab
+			else if ( e.keyCode === 27 || e.keyCode === 9 ) {
+				closeSuggestionsBox();
 
-			if( e.keyCode !== 13 && searchBoxController.state.value !== e.target.value ) {
-				searchBoxController.updateText( DOMPurify.sanitize( e.target.value ) );
+				if ( e.keyCode === 27 ) {
+					e.preventDefault();
+				}
+			}
+			// Arrow key up
+			else if ( e.keyCode === 38 ) {
+				if ( !( isFirefox && waitForkeyUp ) ) {
+					waitForkeyUp = true;
+					searchBoxArrowKeyUp();
+					e.preventDefault();
+				}
+			}
+			// Arrow key down
+			else if ( e.keyCode === 40 ) {
+				if ( !( isFirefox && waitForkeyUp ) ) {
+					waitForkeyUp = true;
+					searchBoxArrowKeyDown();
+				}
+			}
+		};
+		searchBoxElement.onkeyup = ( e ) => {
+			waitForkeyUp = false;
+			lastCharKeyUp = e.keyCode;
+			// Keys that don't changes the input value
+			if ( ( e.key.length !== 1 && e.keyCode !== 46 && e.keyCode !== 8 ) ||                       // Non-printable char except Delete or Backspace
+				( e.ctrlKey && e.key !== "x" && e.key !== "X" && e.key !== "v" && e.key !== "V" ) ) {   // Ctrl-key is pressed but not X or V is use 
+				return;
+			}
+
+			// Any other key
+			if ( searchBoxController.state.value !== e.target.value ) {
+				searchBoxController.updateText( stripHtml( e.target.value ) );
+			}
+			if ( e.target.value.length < params.minimumCharsForSuggestions ){
+				closeSuggestionsBox();
 			}
 		};
 		searchBoxElement.onfocus = () => {
 			lastCharKeyUp = null;
-			searchBoxController.showSuggestions();
+			if ( searchBoxElement.value.length >= params.minimumCharsForSuggestions ) {
+				searchBoxController.showSuggestions();
+			}
 		};
 	}
 
@@ -728,7 +754,7 @@ function initEngine() {
 			if ( searchBoxElement && searchBoxElement.value ) {
 				// Make sure we have the latest value in the search box state
 				if( searchBoxController.state.value !== searchBoxElement.value ) {
-					searchBoxController.updateText( DOMPurify.sanitize( searchBoxElement.value ) );
+					searchBoxController.updateText( stripHtml( searchBoxElement.value ) );
 				}
 				searchBoxController.submit();
 			}
@@ -742,13 +768,59 @@ function initEngine() {
 	}
 }
 
+function searchBoxArrowKeyUp() {
+	if ( suggestionsElement.hidden ) {
+		return;
+	}
+
+	if ( !activeSuggestion || activeSuggestion <= 1 ) {
+		activeSuggestion = searchBoxState.suggestions.length;
+	}
+	else {
+		activeSuggestion -= 1;
+	}
+
+	updateSuggestionSelection();
+}
+
+function searchBoxArrowKeyDown() {
+	if ( suggestionsElement.hidden ) {
+		return;
+	}
+
+	if ( !activeSuggestion || activeSuggestion >= searchBoxState.suggestions.length ) {
+		activeSuggestion = 1;
+	}
+	else {
+		activeSuggestion += 1;
+	}
+
+	updateSuggestionSelection();
+}
+
+function updateSuggestionSelection() {
+	// clear current suggestion
+	let activeSelection = suggestionsElement.getElementsByClassName( 'selected-suggestion' );
+	let selectedSuggestionId = 'suggestion-' + activeSuggestion;
+	let suggestionElement = document.getElementById( selectedSuggestionId );
+	Array.prototype.forEach.call(activeSelection, function( suggestion ) {
+		suggestion.classList.remove( 'selected-suggestion' );
+		suggestion.setAttribute( 'aria-selected', "false" );
+	});
+
+	suggestionElement.classList.add( 'selected-suggestion' );
+	suggestionElement.setAttribute( 'aria-selected', "true" );
+	searchBoxElement.setAttribute( 'aria-activedescendant', selectedSuggestionId );
+	searchBoxElement.value = suggestionElement.innerText;
+}
+
 // Show query suggestions if a search action was not executed (if enabled)
 function updateSearchBoxState( newState ) {
 	const previousState = searchBoxState;
 	searchBoxState = newState;
 
 	if ( updateSearchBoxFromState && searchBoxElement && searchBoxElement.value !== newState.value ) {
-		searchBoxElement.value = DOMPurify.sanitize( newState.value );
+		searchBoxElement.value = stripHtml( newState.value );
 		updateSearchBoxFromState = false;
 		return;
 	}
@@ -758,27 +830,62 @@ function updateSearchBoxState( newState ) {
 	}
 
 	if ( lastCharKeyUp === 13 ) {
-		suggestionsElement.hidden = true;
+		closeSuggestionsBox();
 		return;
 	}
 
+	activeSuggestion = 0;
 	if ( !searchBoxState.isLoadingSuggestions && previousState?.isLoadingSuggestions ) {
 		suggestionsElement.textContent = '';
-		searchBoxState.suggestions.forEach( ( suggestion ) => {
+		activeSuggestionWaitMouseMove = true;
+		searchBoxState.suggestions.forEach( ( suggestion, index ) => {
+			const currentIndex = index + 1;
+			const suggestionId = "suggestion-" + currentIndex;
 			const node = document.createElement( "li" );
 			node.setAttribute( "class", "suggestion-item" );
-			node.onclick = ( e ) => { 
-				searchBoxController.selectSuggestion(e.currentTarget.innerText);
-				searchBoxElement.value = DOMPurify.sanitize( e.currentTarget.innerText );
+			node.setAttribute( "aria-selected", "false" );
+			node.setAttribute( "aria-setsize", searchBoxState.suggestions.length );
+			node.setAttribute( "aria-posinset", currentIndex );
+			node.role = "option";			
+			node.id = suggestionId;
+			node.onmouseenter = () => {
+				if ( !activeSuggestionWaitMouseMove ) {
+					activeSuggestion = index + 1;
+					updateSuggestionSelection();
+				}
 			};
-			node.innerHTML = suggestion.highlightedValue;
+			node.onmousemove = () => {
+				activeSuggestionWaitMouseMove = false;
+			};
+			node.onclick = ( e ) => { 
+				searchBoxController.selectSuggestion( e.currentTarget.innerText );
+				searchBoxElement.value = stripHtml( e.currentTarget.innerText );
+			};
+			node.innerHTML = DOMPurify.sanitize( suggestion.highlightedValue );
 			suggestionsElement.appendChild( node );
 		});
 
-		if ( searchBoxState.suggestions.length > 0 ) {
-			suggestionsElement.hidden = false;
+		if ( !searchBoxState.isLoading && searchBoxState.suggestions.length > 0 && searchBoxState.value.length >= params.minimumCharsForSuggestions ) {
+			openSuggestionsBox();
+		}
+		else{
+			closeSuggestionsBox();
 		}
 	}
+}
+
+// open the suggestions box 
+function openSuggestionsBox() {
+	suggestionsElement.hidden = false;
+	searchBoxElement.setAttribute( 'aria-expanded', 'true' );
+}
+
+// open the suggestions box 
+function closeSuggestionsBox() {
+	suggestionsElement.hidden = true;
+	activeSuggestion = 0;
+	searchBoxElement.setAttribute( 'aria-expanded', 'false' );
+	searchBoxElement.setAttribute( 'aria-activedescendant', '' );
 }
 
 // rebuild a clean query string out of a JSON object
@@ -790,7 +897,7 @@ function buildCleanQueryString( paramsObject ) {
 				urlParam += "&";
 			}
 
-			urlParam += prop + "=" + DOMPurify.sanitize( paramsObject[ prop ].replaceAll( '+', ' ' ) );
+			urlParam += prop + "=" + stripHtml( paramsObject[ prop ].replaceAll( '+', ' ' ) );
 		}	
 	}
 
@@ -804,6 +911,13 @@ function filterProtocol( uri ) {
 	const isRelative = /^(\/|\.\/|\.\.\/)/.test( uri );
 
 	return isAbsolute || isRelative ? uri : '';
+}
+
+// Strip HTML tags of a given string
+function stripHtml(html) {
+	let tmp = document.createElement( "DIV" );
+	tmp.innerHTML = html;
+	return tmp.textContent || tmp.innerText || "";
 }
 
 // Get date converted from GMT (Coveo) to current timezone
@@ -834,7 +948,7 @@ function updateResultListState( newState ) {
 
 	if ( resultListState.isLoading ) {
 		if ( suggestionsElement ) {
-			suggestionsElement.hidden = true;
+			closeSuggestionsBox();
 		}
 		return;
 	}
@@ -856,28 +970,36 @@ function updateResultListState( newState ) {
 
 			if( result.raw.author ) {
 				if( Array.isArray( result.raw.author ) ) {
-					author = result.raw.author.join( ';' );
+					author = stripHtml( result.raw.author.join( ';' ) );
 				}
 				else {
-					author = result.raw.author;
+					author = stripHtml( result.raw.author );
 				}
-				if( params.isContextSearch ) {
-					author = author.replace( ';', ', ' );
-				}
-				else {
-					author = author.replace( ',', ';' );
-					author = author.replace( ';' , '</li> <li>' );
-				}
+
+				author = author.replaceAll( ';' , '</li> <li>' );
+			}
+
+			let breadcrumb = "";
+			let printableUri = stripHtml( result.printableUri );
+			let clickUri = stripHtml( result.clickUri );
+			let title = stripHtml( result.title );
+			if ( result.raw.hostname && result.raw.displaynavlabel ) {
+				const splittedNavLabel = ( Array.isArray( result.raw.displaynavlabel ) ? result.raw.displaynavlabel[0] : result.raw.displaynavlabel).split( '>' );
+				breadcrumb = '<ol class="location"><li>' + stripHtml( result.raw.hostname ) + 
+					'&nbsp;</li><li>' + stripHtml( splittedNavLabel[splittedNavLabel.length-1] ) + '</li></ol>';
+			}
+			else {
+				breadcrumb = '<p class="location"><cite><a href="' + printableUri + '">' + printableUri + '</a></cite></p>';
 			}
 
 			sectionNode.innerHTML = resultTemplateHTML
 				.replace( '%[index]', index + 1 )
-				.replace( 'https://www.canada.ca', filterProtocol( result.clickUri ) ) // workaround, invalid href are stripped
-				.replace( '%[result.clickUri]', filterProtocol( result.clickUri ) )
-				.replace( '%[result.title]', result.title )
+				.replace( 'https://www.canada.ca', filterProtocol( clickUri ) ) // workaround, invalid href are stripped
+				.replace( '%[result.clickUri]', filterProtocol( clickUri ) )
+				.replace( '%[result.title]', title )
 				.replace( '%[result.raw.author]', author )
-				.replace( '%[result.breadcrumb]', result.raw.displaynavlabel ? result.raw.displaynavlabel : result.printableUri )
-				.replace( '%[result.printableUri]', result.printableUri.replaceAll( '&' , '&amp;' ) )
+				.replace( '%[result.breadcrumb]', breadcrumb )
+				.replace( '%[result.printableUri]', printableUri.replaceAll( '&' , '&amp;' ) )
 				.replace( '%[short-date-en]', getShortDateFormat( resultDate ) )
 				.replace( '%[short-date-fr]', getShortDateFormat( resultDate ) )
 				.replace( '%[long-date-en]', getLongDateFormat( resultDate, 'en' ) )
@@ -960,7 +1082,9 @@ function updateDidYouMeanState( newState ) {
 	if ( resultListState.firstSearchExecuted ) {
 		didYouMeanElement.textContent = "";
 		if ( didYouMeanState.hasQueryCorrection ) {
-			didYouMeanElement.innerHTML = didYouMeanTemplateHTML.replace( '%[correctedQuery]', didYouMeanState.queryCorrection.correctedQuery );
+			didYouMeanElement.innerHTML = didYouMeanTemplateHTML.replace( 
+				'%[correctedQuery]', 
+				stripHtml( didYouMeanState.queryCorrection.correctedQuery ) );
 			const buttonNode = didYouMeanElement.querySelector( 'button' );
 			buttonNode.onclick = ( e ) => { 
 				updateSearchBoxFromState = true;
@@ -994,7 +1118,7 @@ function updatePagerState( newState ) {
 		const liNode = document.createElement( "li" );
 		const pageNo = page;
 
-		liNode.innerHTML = pageTemplateHTML.replaceAll( '%[page]', pageNo );
+		liNode.innerHTML = pageTemplateHTML.replaceAll( '%[page]', stripHtml( pageNo ) );
 
 		if ( pagerState.currentPage - 1 > page || page > pagerState.currentPage + 1 ) {
 			liNode.classList.add( 'hidden-xs', 'hidden-sm' );
