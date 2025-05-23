@@ -30,8 +30,8 @@ const defaults = {
 	"accessToken":"",
 	"searchBoxQuery": "#sch-inp-ac",
 	"lang": "en",
-	"numberOfSuggestions": 0,
-	"minimumCharsForSuggestions": 2,
+	"numberOfSuggestions": 5,
+	"minimumCharsForSuggestions": 3,
 	"enableHistoryPush": true,
 	"isContextSearch": false,
 	"isAdvancedSearch": false,
@@ -359,7 +359,7 @@ function initTpl() {
 
 	// auto-create suggestions element
 	searchBoxElement = document.querySelector( params.searchBoxQuery );
-	if ( !suggestionsElement && searchBoxElement && params.numberOfSuggestions > 0 ) {
+	if ( !suggestionsElement && searchBoxElement && params.numberOfSuggestions > 0 && !params.isAdvancedSearch ) {
 		searchBoxElement.role = "combobox";
 		searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
 
