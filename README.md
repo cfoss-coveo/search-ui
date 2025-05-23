@@ -110,6 +110,8 @@ They must be used within the `[data-gc-search]` attribute. See the **/test/src-e
 : Langague of the text to output, in short format (`en` or `fr`). Will detect the langauge of the HTML page if not defined. If not determined, default is: `en`
 - `numberOfSuggestions`
 : Number of suggestions to show in the Query Suggestion (QS) box. This will activate the QS feature on your search page. Default: `0`
+- `minimumCharsForSuggestions`
+: Number of characters entered by the users needed to trigger the QS feature
 - `enableHistoryPush`
 : Allows for UI elements that are not hyperlink tags to register their action in the history, such as pagination. Default: `true`
 - `isContextSearch`
@@ -117,7 +119,7 @@ They must be used within the `[data-gc-search]` attribute. See the **/test/src-e
 - `isAdvancedSearch`
 : Set the search behavior of the page as an advanced search. This is optional since it will detect automatically from the path of your page if it is advanced. If not determined, default is: `false`
 - `originLevel3`
-: Allows for mimicking a specific search page/context, such as the ESDC contextual search if you set it to: `/en/employment-social-development/search.html`. Default is the current page relative location (domain agnostic).
+: Allows for mimicking a specific search page/context, such as the ESDC contextual search if you set it to: `/en/employment-social-development/search.html`; this value can be be relative or absolute and is used to differentiate and contextualize a search page from another both in terms of scoping the search results and in terms of knowledge base for machine learning-powered features. Default is set to the current page's absolute URL
 
 #### Templates
 
@@ -226,7 +228,7 @@ Sometimes your search pages contain more than one input relevant to the search's
 - `filetype`
 : Search , within documents of a certain file type. Options are: `application/pdf`, `ps`, `application/msword`, `application/vnd.ms-excel`, `application/vnd.ms-powerpoint`, `application/rtf`
 - `originLevel3`
-: Allows for mimicking a specific search page/context by setting its path through this URL parameter
+: Allows for mimicking a specific search page/context by setting its path through this URL parameter; this takes precedence over the configuration through data attribute
 
 ### Other
 
