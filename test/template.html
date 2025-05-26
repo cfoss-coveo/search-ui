@@ -54,6 +54,41 @@ script:
         </div>
     </div>
 </template>
+<template id="sr-did-you-mean">
+    <p class="h5">Did you mean <button class="btn btn-default px-2 py-0 mrgn-rght-sm mrgn-bttm-sm brdr-bttm" type="button">%[correctedQuery]</button>?</p>
+</template>
+<template id="sr-nores">
+    <section class="alert alert-warning">
+		<h2>No results found</h2>
+		<p>Nothing seems to match your search terms. Suggestions:</p>
+		<ul>
+			<li>Make sure all search terms are spelled correctly</li>
+			<li>Try different search terms</li>
+			<li>Try more general search terms</li>
+		</ul>
+	</section>
+</template>
+<template id="sr-error">
+    <section class="alert alert-danger">
+		<h2>The Search encountered an error</h2>
+		<p>We apologize for any inconvenience caused by this issue. You may try to refresh the page.</p>
+	</section>
+</template>
+<template id="sr-pager-container">
+    <div class="text-center">
+		<p class="wb-inv">Results pages</p>
+		<ul id="pager" class="pagination bg-dark"></ul>
+	</div>
+</template>
+<template id="sr-pager-previous">
+    <button class="page-button">Prev<span class="wb-inv"> page of results</span></button>
+</template>
+<template id="sr-pager-next">
+    <button class="page-button">Next<span class="wb-inv"> page of results</span></button>
+</template>
+<template id="sr-pager-page">
+    <button class="page-button"><span class="wb-inv">Page </span>%[page]<span class="wb-inv"> of results</span></button>
+</template>
 
 <!--DEMO-EXPECTATIONS-->
 <h2>Expected output for the result section</h2>
