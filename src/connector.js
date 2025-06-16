@@ -447,6 +447,11 @@ function initEngine() {
 
 						let q = requestContent.q;
 						requestContent.q = sanitizeQuery( q );
+
+						// Removes actionsHistory from the request and destroys the cookie/localStorage copies of it
+						requestContent.actionsHistory = []
+						clearCoveoAnalyticsHistory()
+						
 						request.body = JSON.stringify( requestContent );
 					}
 				} catch {
@@ -788,6 +793,12 @@ function initEngine() {
 			}
 		};
 	}
+}
+
+function clearCoveoAnalyticsHistory(){
+	const storageKey = '__coveo.analytics.history'
+	document.cookie =`${storageKey}=; expires=; domain=; path=/; SameSite=Lax;`
+	localStorage.removeItem(storageKey);
 }
 
 function searchBoxArrowKeyUp() {
