@@ -449,7 +449,7 @@ function initEngine() {
 						requestContent.q = sanitizeQuery( q );
 
 						// Removes actionsHistory from the request and destroys the cookie/localStorage copies of it
-						requestContent.actionsHistory = []
+						requestContent.actionsHistory = [];
 						clearCoveoAnalyticsHistory()
 						
 						request.body = JSON.stringify( requestContent );
