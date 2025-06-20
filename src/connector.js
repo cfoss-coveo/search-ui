@@ -797,8 +797,12 @@ function initEngine() {
 
 function clearCoveoAnalyticsHistory(){
 	const storageKey = '__coveo.analytics.history'
-	document.cookie =`${storageKey}=; expires=; domain=; path=/; SameSite=Lax;`
-	localStorage.removeItem(storageKey);
+	if ( storageKey in localStorage ) {
+		localStorage.removeItem(storageKey);
+	}
+	else if( document.cookie.indexOf( storageKey + '=' > -1 ) {
+		document.cookie =`${storageKey}=; expires=; domain=; path=/; SameSite=Lax;`
+	}
 }
 
 function searchBoxArrowKeyUp() {
