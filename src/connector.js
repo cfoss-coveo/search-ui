@@ -450,7 +450,7 @@ function initEngine() {
 
 						// Removes actionsHistory from the request and destroys the cookie/localStorage copies of it
 						requestContent.actionsHistory = [];
-						clearCoveoAnalyticsHistory()
+						clearCoveoAnalyticsHistory();
 						
 						request.body = JSON.stringify( requestContent );
 					}
