@@ -796,12 +796,12 @@ function initEngine() {
 }
 
 function clearCoveoAnalyticsHistory(){
-	const storageKey = '__coveo.analytics.history'
+	const storageKey = '__coveo.analytics.history';
 	if ( storageKey in localStorage ) {
 		localStorage.removeItem(storageKey);
 	}
-	else if( document.cookie.indexOf( storageKey + '=' > -1 ) {
-		document.cookie =`${storageKey}=; expires=; domain=; path=/; SameSite=Lax;`
+	if( document.cookie.indexOf( storageKey + '=' > -1 ) {
+		document.cookie =`${storageKey}=; expires=; domain=; path=/; SameSite=Lax;`;
 	}
 }
 
