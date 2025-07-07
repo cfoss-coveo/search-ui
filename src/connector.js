@@ -800,7 +800,7 @@ function clearCoveoAnalyticsHistory(){
 	if ( storageKey in localStorage ) {
 		localStorage.removeItem(storageKey);
 	}
-	if( document.cookie.indexOf( storageKey + '=' > -1 ) {
+	if( document.cookie.indexOf( storageKey + '=' > -1 ) ) {
 		document.cookie =`${storageKey}=; expires=; domain=; path=/; SameSite=Lax;`;
 	}
 }
