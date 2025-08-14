@@ -21,6 +21,15 @@
 .query-suggestions li:hover {
 	background-color: #ddd;
 }
+.query-suggestions .suggestion-item::before {
+	content: "\e003";
+	font-family: "Glyphicons Halflings";
+	font-size: 0.8em;
+	line-height: 1;
+	margin-right: 12px;
+	position: relative;
+	top: 1px;
+}
 .query-suggestions .selected-suggestion {
 	background-color: #ddd;
 }

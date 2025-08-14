@@ -72,7 +72,6 @@ let didYouMeanState;
 let pagerState;
 let lastCharKeyUp;
 let activeSuggestion = 0;
-let activeSuggestionWaitMouseMove = true;
 let pagerManuallyCleared = false;
 
 // Firefox patch
@@ -100,6 +99,7 @@ let previousPageTemplateHTML = document.getElementById( 'sr-pager-previous' )?.i
 let pageTemplateHTML = document.getElementById( 'sr-pager-page' )?.innerHTML;
 let nextPageTemplateHTML = document.getElementById( 'sr-pager-next' )?.innerHTML;
 let pagerContainerTemplateHTML = document.getElementById( 'sr-pager-container' )?.innerHTML;
+let querySuggestionAccessibilityInstructionsTemplateHTML = document.getElementById( 'sr-qs-hint' )?.innerHTML;
 
 // Init parameters and UI
 function initSearchUI() {
@@ -331,6 +331,23 @@ function initTpl() {
 		}
 	}
 
+	if ( !querySuggestionAccessibilityInstructionsTemplateHTML ) {
+			if ( lang === "fr" ) {
+			querySuggestionAccessibilityInstructionsTemplateHTML = 
+				`<p id="sr-qs-hint" class="hidden">
+					Appuyez sur les touches de direction orientées vers le haut et vers le bas pour vous déplacer dans les suggestions de 
+					recherche. Appuyez une fois sur la touche Entrée sur une suggestion pour la sélectionner et débuter la recherche.
+				</p>`;
+		}
+		else {
+			querySuggestionAccessibilityInstructionsTemplateHTML = 
+				`<p id="sr-qs-hint" class="hidden">
+					Press the up and down arrow keys to move through the search suggestions. Press Enter on a suggestion once to select 
+					it and start the search.
+				</p>`;
+		}	
+	}
+
 	// auto-create results
 	if ( !resultsSection ) {
 		resultsSection = document.createElement( "section" );
@@ -386,6 +403,11 @@ function initTpl() {
 
 		searchBoxElement.after( suggestionsElement );
 		searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
+
+		// Add accessibility instructions after query suggestions
+		suggestionsElement.insertAdjacentHTML( 'afterEnd', querySuggestionAccessibilityInstructionsTemplateHTML );
+		suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" );
+
 	}
 
 	// Close query suggestion box if click elsewhere
@@ -711,6 +733,7 @@ function initEngine() {
 		searchBoxElement.onkeydown = ( e ) => {
 			// Enter
 			if ( e.keyCode === 13 && ( activeSuggestion !== 0 && suggestionsElement && !suggestionsElement.hidden ) ) {
+				selectSuggestion();
 				closeSuggestionsBox();
 				e.preventDefault();
 			}
@@ -820,6 +843,19 @@ function searchBoxArrowKeyDown() {
 	updateSuggestionSelection();
 }
 
+function selectSuggestion() {
+	let suggestionElement = document.getElementById( 'suggestion-' + activeSuggestion );
+
+	if ( suggestionElement ) {
+		const selectedVal = stripHtml( suggestionElement.innerText );
+
+		if ( searchBoxController.state.value !== selectedVal ) {
+			searchBoxController.selectSuggestion( selectedVal );
+			searchBoxElement.value = selectedVal;
+		}
+	}
+}
+
 function updateSuggestionSelection() {
 	// clear current suggestion
 	let activeSelection = suggestionsElement.getElementsByClassName( 'selected-suggestion' );
@@ -833,7 +869,6 @@ function updateSuggestionSelection() {
 	suggestionElement.classList.add( 'selected-suggestion' );
 	suggestionElement.setAttribute( 'aria-selected', "true" );
 	searchBoxElement.setAttribute( 'aria-activedescendant', selectedSuggestionId );
-	searchBoxElement.value = suggestionElement.innerText;
 }
 
 // Show query suggestions if a search action was not executed (if enabled)
@@ -859,7 +894,6 @@ function updateSearchBoxState( newState ) {
 	activeSuggestion = 0;
 	if ( !searchBoxState.isLoadingSuggestions && previousState?.isLoadingSuggestions ) {
 		suggestionsElement.textContent = '';
-		activeSuggestionWaitMouseMove = true;
 		searchBoxState.suggestions.forEach( ( suggestion, index ) => {
 			const currentIndex = index + 1;
 			const suggestionId = "suggestion-" + currentIndex;
@@ -871,13 +905,8 @@ function updateSearchBoxState( newState ) {
 			node.role = "option";			
 			node.id = suggestionId;
 			node.onmouseenter = () => {
-				if ( !activeSuggestionWaitMouseMove ) {
-					activeSuggestion = index + 1;
-					updateSuggestionSelection();
-				}
-			};
-			node.onmousemove = () => {
-				activeSuggestionWaitMouseMove = false;
+				activeSuggestion = index + 1;
+				updateSuggestionSelection();
 			};
 			node.onclick = ( e ) => { 
 				searchBoxController.selectSuggestion( e.currentTarget.innerText );
