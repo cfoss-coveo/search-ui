@@ -390,24 +390,32 @@ function initTpl() {
 		pagerElement = newPagerElement;
 	}
 
-	// auto-create suggestions element
+	// initialize the search box
 	searchBoxElement = document.querySelector( params.searchBoxQuery );
-	if ( !suggestionsElement && searchBoxElement && params.numberOfSuggestions > 0 && !params.isAdvancedSearch ) {
-		searchBoxElement.role = "combobox";
-		searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
+	if ( searchBoxElement ) {
 
-		suggestionsElement = document.createElement( "ul" );
-		suggestionsElement.id = "suggestions";
-		suggestionsElement.role = "listbox";
-		suggestionsElement.classList.add( "query-suggestions" );
+		// default searchbox attributes
+		searchBoxElement.setAttribute( 'type', 'search' ); // default, when query suggestions are disabled
+		searchBoxElement.setAttribute( 'aria-expanded', 'false' );
 
-		searchBoxElement.after( suggestionsElement );
-		searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
+		// if query suggestions are enabled, auto-create suggestions element and update searchbox attributes
+		if ( params.numberOfSuggestions > 0 && !suggestionsElement ) {
+			searchBoxElement.setAttribute( 'type', 'text' );
+			searchBoxElement.role = "combobox";
+			searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
 
-		// Add accessibility instructions after query suggestions
-		suggestionsElement.insertAdjacentHTML( 'afterEnd', querySuggestionAccessibilityInstructionsTemplateHTML );
-		suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" );
+			suggestionsElement = document.createElement( "ul" );
+			suggestionsElement.id = "suggestions";
+			suggestionsElement.role = "listbox";
+			suggestionsElement.classList.add( "query-suggestions" );
 
+			searchBoxElement.after( suggestionsElement );
+			searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
+
+			// Add accessibility instructions after query suggestions
+			suggestionsElement.insertAdjacentHTML('afterEnd', querySuggestionAccessibilityInstructionsTemplateHTML)
+			suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" )
+		}
 	}
 
 	// Close query suggestion box if click elsewhere
