@@ -99,7 +99,7 @@ let previousPageTemplateHTML = document.getElementById( 'sr-pager-previous' )?.i
 let pageTemplateHTML = document.getElementById( 'sr-pager-page' )?.innerHTML;
 let nextPageTemplateHTML = document.getElementById( 'sr-pager-next' )?.innerHTML;
 let pagerContainerTemplateHTML = document.getElementById( 'sr-pager-container' )?.innerHTML;
-let querySuggestionAccessibilityInstructionsTemplateHTML = document.getElementById( 'sr-qs-hint' )?.innerHTML;
+let qsA11yHintHTML = document.getElementById( 'sr-qs-hint' )?.innerHTML;
 
 // Init parameters and UI
 function initSearchUI() {
@@ -331,16 +331,16 @@ function initTpl() {
 		}
 	}
 
-	if ( !querySuggestionAccessibilityInstructionsTemplateHTML ) {
+	if ( !qsA11yHintHTML ) {
 			if ( lang === "fr" ) {
-			querySuggestionAccessibilityInstructionsTemplateHTML = 
+			qsA11yHintHTML = 
 				`<p id="sr-qs-hint" class="hidden">
 					Appuyez sur les touches de direction orientées vers le haut et vers le bas pour vous déplacer dans les suggestions de 
 					recherche. Appuyez une fois sur la touche Entrée sur une suggestion pour la sélectionner et débuter la recherche.
 				</p>`;
 		}
 		else {
-			querySuggestionAccessibilityInstructionsTemplateHTML = 
+			qsA11yHintHTML = 
 				`<p id="sr-qs-hint" class="hidden">
 					Press the up and down arrow keys to move through the search suggestions. Press Enter on a suggestion once to select 
 					it and start the search.
@@ -396,12 +396,12 @@ function initTpl() {
 
 		// default searchbox attributes
 		searchBoxElement.setAttribute( 'type', 'search' ); // default, when query suggestions are disabled
-		searchBoxElement.setAttribute( 'aria-expanded', 'false' );
 
-		// if query suggestions are enabled, auto-create suggestions element and update searchbox attributes
-		if ( params.numberOfSuggestions > 0 && !suggestionsElement ) {
+		// if query suggestions are enabled and not advanced search, auto-create suggestions element and update searchbox attributes
+		if ( params.numberOfSuggestions > 0 && !params.isAdvancedSearch && !suggestionsElement ) {
 			searchBoxElement.setAttribute( 'type', 'text' );
 			searchBoxElement.role = "combobox";
+			searchBoxElement.setAttribute( 'aria-expanded', 'false' );
 			searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
 
 			suggestionsElement = document.createElement( "ul" );
@@ -413,7 +413,7 @@ function initTpl() {
 			searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
 
 			// Add accessibility instructions after query suggestions
-			suggestionsElement.insertAdjacentHTML('afterEnd', querySuggestionAccessibilityInstructionsTemplateHTML)
+			suggestionsElement.insertAdjacentHTML('afterEnd', qsA11yHintHTML)
 			suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" )
 		}
 	}
