@@ -448,6 +448,14 @@ function initEngine() {
 
 						let q = requestContent.q;
 						requestContent.q = sanitizeQuery( q );
+
+						// Filters out actions history items older than 7 days
+						const actionsHistory = limitCoveoAnalyticsHistory( requestContent.actionsHistory );
+						if ( actionsHistory.length !== requestContent.actionsHistory.length ) {
+							requestContent.actionsHistory = actionsHistory;
+							saveCoveoAnalyticsHistory( actionsHistory );
+						}
+						
 						request.body = JSON.stringify( requestContent );
 					}
 				} catch {
@@ -808,6 +816,45 @@ function initEngine() {
 				pagerManuallyCleared = true;
 			}
 		};
+	}
+}
+
+// Detect if localStorage is available
+function hasLocalStorage() {
+	try {
+		return typeof localStorage !== 'undefined';
+	} catch ( error ) {
+		return false;
+	}
+}
+
+// Limit actions history array to items newer than 7 days
+function limitCoveoAnalyticsHistory( actionsHistory ) {
+	const now = new Date();
+	const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+
+	return actionsHistory.filter( ( action ) => {
+		const parsedTime = new Date( action.time.replace( /^"|"$/g, "" ) );
+		return parsedTime.getTime() >= sevenDaysAgo;
+	} );
+}
+
+// Saves the actions history array to either localStorage or a cookie, depending on what's available
+function saveCoveoAnalyticsHistory( actionsHistory ) {
+	const key = '__coveo.analytics.history';
+	const serialized = JSON.stringify( actionsHistory );
+
+	// Coveo will use localStorage if available, ignoring cookies
+	if ( hasLocalStorage() ) {
+		localStorage.setItem( key, serialized );
+	} else {
+		// No localStorage, try cookies
+		try {
+			const expiry = 7 * 24 * 60 * 60; // 7-day expiry
+			document.cookie = `${key}=${serialized}; path=/; max-age=${expiry}`;
+		} catch ( error ) {
+			// Do nothing if cookies are disabled
+		}
 	}
 }
 
