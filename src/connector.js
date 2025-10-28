@@ -154,6 +154,10 @@ function initSearchUI() {
 	if ( urlParams.originLevel3 ){
 		params.originLevel3 = urlParams.originLevel3;
 	}
+	// override sort through query parameters 
+	if (urlParams.sort){
+		params.sort = urlParams.sort;
+	}						 
 	
 	// Auto detect relative path from originLevel3
 	if( !params.originLevel3.startsWith( "/" ) && /http|www/.test( params.originLevel3 ) ) {
@@ -543,13 +547,6 @@ function initEngine() {
 			aqString += ' @uri="' + urlParams.dmn + '"';
 		}
 
-		if ( urlParams.sort ) {
-			const sortAction = loadSortCriteriaActions( headlessEngine ).registerSortCriterion( {
-				by: "date",
-				order: "descending",
-			} );
-			headlessEngine.dispatch( sortAction );
-		}
 
 		// Specifically for Elections Canada, allows to search within scope
 		if ( urlParams.elctn_cat ) {
@@ -600,6 +597,9 @@ function initEngine() {
 			if ( filetype === "application/pdf" ) {
 				aqString += ' @filetype==(pdf)';
 			}
+			else if ( filetype === "text/html" ) {
+				aqString += ' @filetype==(html)';
+			}										 	
 			else if ( filetype === "ps" ) {
 				aqString += ' @filetype==(ps)';
 			}
@@ -684,6 +684,13 @@ function initEngine() {
 			fragment: fragment(),
 		},
 	} );
+	if ( params.sort ) { 
+		const sortAction = loadSortCriteriaActions( headlessEngine ).registerSortCriterion( {
+			by: "date",
+			order: params.sort ,
+		} );
+		headlessEngine.dispatch( sortAction );
+	}																								
 
 	// Unsubscribe to controllers
 	unsubscribeManager = urlManager.subscribe( () => {
@@ -1035,6 +1042,13 @@ function getLongDateFormat( date, lang ){
 	return currentTZDate.getDate() + " " + monthsFr[ currentTZDate.getMonth() ] + " " + currentTZDate.getFullYear();
 }
 
+
+function isEmptyDate(date) { // checking for default date , Jan 1st, 1970
+	return date instanceof Date &&
+	date.getFullYear() === 1970 &&
+	date.getMonth() === 0 &&     // January is 0
+	date.getDate() === 1;
+}
 // Update results list
 function updateResultListState( newState ) {
 	resultListState = newState;
@@ -1077,7 +1091,11 @@ function updateResultListState( newState ) {
 			let description = "";
 			let printableUri = encodeURI( result.printableUri );
 			printableUri = printableUri.replaceAll( '&' , '&amp;' );
+			printableUri = printableUri.replaceAll( '%252F' , '/' );			
+			printableUri = printableUri.replaceAll( "%252C" , "," ); // handle coma							   
 			let clickUri = encodeURI( result.clickUri );
+			clickUri = clickUri.replaceAll( "%252C" , "%2C" );  // handle coma
+			clickUri = clickUri.replaceAll( "%252F" , "%2F" );  // handle slash							   
 			let title = stripHtml( result.title );
 			if ( result.raw.hostname && result.raw.displaynavlabel ) {
 				const splittedNavLabel = ( Array.isArray( result.raw.displaynavlabel ) ? result.raw.displaynavlabel[0] : result.raw.displaynavlabel).split( '>' );
@@ -1108,10 +1126,10 @@ function updateResultListState( newState ) {
 				.replace( '%[result.printableUri]', printableUri )
 				.replace( '%[result.raw.disp_declared_type]', disp_declared_type )
 				.replace( '%[result.raw.description]', description )
-				.replaceAll( '%[short-date-en]', getShortDateFormat( resultDate ) )
-				.replaceAll( '%[short-date-fr]', getShortDateFormat( resultDate ) )
-				.replace( '%[long-date-en]', getLongDateFormat( resultDate, 'en' ) )
-				.replace( '%[long-date-fr]', getLongDateFormat( resultDate, 'fr' ) )
+				.replaceAll( '%[short-date-en]', isEmptyDate(resultDate) ? '' : getShortDateFormat( resultDate ) )
+				.replaceAll( '%[short-date-fr]', isEmptyDate(resultDate) ? '' : getShortDateFormat( resultDate ) )
+				.replace( '%[long-date-en]', isEmptyDate(resultDate) ? '' : getLongDateFormat( resultDate, 'en' ) )
+				.replace( '%[long-date-fr]', isEmptyDate(resultDate) ? '' : getLongDateFormat( resultDate, 'fr' ) )
 				.replace( '%[highlightedExcerpt]', highlightedExcerpt );
 
 			const interactiveResult = buildInteractiveResult(
