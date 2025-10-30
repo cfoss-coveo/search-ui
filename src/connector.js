@@ -338,10 +338,7 @@ function initTpl() {
 		}
 		else {
 			qsA11yHintHTML = 
-				`<p id="sr-qs-hint" class="hidden">
-					Press the up and down arrow keys to move through the search suggestions. Press Enter on a suggestion once to select 
-					it and start the search.
-				</p>`;
+				`<p id="sr-qs-hint" class="hidden">Press the up and down arrow keys to move through the search suggestions. Press Enter on a suggestion once to select it and start the search.</p>`;
 		}	
 	}
 
