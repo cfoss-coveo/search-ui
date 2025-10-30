@@ -413,8 +413,8 @@ function initTpl() {
 			searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
 
 			// Add accessibility instructions after query suggestions
-			suggestionsElement.insertAdjacentHTML('afterEnd', qsA11yHintHTML)
-			suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" )
+			suggestionsElement.insertAdjacentHTML( 'afterEnd', qsA11yHintHTML );
+			suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" );
 		}
 	}
 
