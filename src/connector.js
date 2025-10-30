@@ -73,7 +73,6 @@ let didYouMeanState;
 let pagerState;
 let lastCharKeyUp;
 let activeSuggestion = 0;
-let activeSuggestionWaitMouseMove = true;
 let pagerManuallyCleared = false;
 
 // Firefox patch
@@ -101,6 +100,7 @@ let previousPageTemplateHTML = document.getElementById( 'sr-pager-previous' )?.i
 let pageTemplateHTML = document.getElementById( 'sr-pager-page' )?.innerHTML;
 let nextPageTemplateHTML = document.getElementById( 'sr-pager-next' )?.innerHTML;
 let pagerContainerTemplateHTML = document.getElementById( 'sr-pager-container' )?.innerHTML;
+let qsA11yHintHTML = document.getElementById( 'sr-qs-hint' )?.innerHTML;
 
 // Init parameters and UI
 function initSearchUI() {
@@ -336,6 +336,17 @@ function initTpl() {
 		}
 	}
 
+	if ( !qsA11yHintHTML ) {
+		if ( lang === "fr" ) {
+			qsA11yHintHTML = 
+				`<p id="sr-qs-hint" class="hidden">Appuyez sur les touches de direction orientées vers le haut et vers le bas pour vous déplacer dans les suggestions de recherche. Appuyez une fois sur la touche Entrée sur une suggestion pour la sélectionner et débuter la recherche.</p>`;
+		}
+		else {
+			qsA11yHintHTML = 
+				`<p id="sr-qs-hint" class="hidden">Press the up and down arrow keys to move through the search suggestions. Press Enter on a suggestion once to select it and start the search.</p>`;
+		}	
+	}
+
 	// auto-create results
 	if ( !resultsSection ) {
 		resultsSection = document.createElement( "section" );
@@ -378,19 +389,32 @@ function initTpl() {
 		pagerElement = newPagerElement;
 	}
 
-	// auto-create suggestions element
+	// initialize the search box
 	searchBoxElement = document.querySelector( params.searchBoxQuery );
-	if ( !suggestionsElement && searchBoxElement && params.numberOfSuggestions > 0 && !params.isAdvancedSearch ) {
-		searchBoxElement.role = "combobox";
-		searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
+	if ( searchBoxElement ) {
 
-		suggestionsElement = document.createElement( "ul" );
-		suggestionsElement.id = "suggestions";
-		suggestionsElement.role = "listbox";
-		suggestionsElement.classList.add( "query-suggestions" );
+		// default searchbox attributes
+		searchBoxElement.setAttribute( 'type', 'search' ); // default, when query suggestions are disabled
 
-		searchBoxElement.after( suggestionsElement );
-		searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
+		// if query suggestions are enabled and not advanced search, auto-create suggestions element and update searchbox attributes
+		if ( params.numberOfSuggestions > 0 && !params.isAdvancedSearch && !suggestionsElement ) {
+			searchBoxElement.setAttribute( 'type', 'text' );
+			searchBoxElement.role = "combobox";
+			searchBoxElement.setAttribute( 'aria-expanded', 'false' );
+			searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
+
+			suggestionsElement = document.createElement( "ul" );
+			suggestionsElement.id = "suggestions";
+			suggestionsElement.role = "listbox";
+			suggestionsElement.classList.add( "query-suggestions" );
+
+			searchBoxElement.after( suggestionsElement );
+			searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
+
+			// Add accessibility instructions after query suggestions
+			suggestionsElement.insertAdjacentHTML( 'afterEnd', qsA11yHintHTML );
+			suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" );
+		}
 	}
 
 	// Close query suggestion box if click elsewhere
@@ -747,6 +771,7 @@ function initEngine() {
 		searchBoxElement.onkeydown = ( e ) => {
 			// Enter
 			if ( e.keyCode === 13 && ( activeSuggestion !== 0 && suggestionsElement && !suggestionsElement.hidden ) ) {
+				selectSuggestion();
 				closeSuggestionsBox();
 				e.preventDefault();
 			}
@@ -895,6 +920,19 @@ function searchBoxArrowKeyDown() {
 	updateSuggestionSelection();
 }
 
+function selectSuggestion() {
+	let suggestionElement = document.getElementById( 'suggestion-' + activeSuggestion );
+
+	if ( suggestionElement ) {
+		const selectedVal = stripHtml( suggestionElement.innerText );
+
+		if ( searchBoxController.state.value !== selectedVal ) {
+			searchBoxController.selectSuggestion( selectedVal );
+			searchBoxElement.value = selectedVal;
+		}
+	}
+}
+
 function updateSuggestionSelection() {
 	// clear current suggestion
 	let activeSelection = suggestionsElement.getElementsByClassName( 'selected-suggestion' );
@@ -908,7 +946,6 @@ function updateSuggestionSelection() {
 	suggestionElement.classList.add( 'selected-suggestion' );
 	suggestionElement.setAttribute( 'aria-selected', "true" );
 	searchBoxElement.setAttribute( 'aria-activedescendant', selectedSuggestionId );
-	searchBoxElement.value = suggestionElement.innerText;
 }
 
 // Show query suggestions if a search action was not executed (if enabled)
@@ -934,7 +971,6 @@ function updateSearchBoxState( newState ) {
 	activeSuggestion = 0;
 	if ( !searchBoxState.isLoadingSuggestions && previousState?.isLoadingSuggestions ) {
 		suggestionsElement.textContent = '';
-		activeSuggestionWaitMouseMove = true;
 		searchBoxState.suggestions.forEach( ( suggestion, index ) => {
 			const currentIndex = index + 1;
 			const suggestionId = "suggestion-" + currentIndex;
@@ -946,13 +982,8 @@ function updateSearchBoxState( newState ) {
 			node.role = "option";			
 			node.id = suggestionId;
 			node.onmouseenter = () => {
-				if ( !activeSuggestionWaitMouseMove ) {
-					activeSuggestion = index + 1;
-					updateSuggestionSelection();
-				}
-			};
-			node.onmousemove = () => {
-				activeSuggestionWaitMouseMove = false;
+				activeSuggestion = index + 1;
+				updateSuggestionSelection();
 			};
 			node.onclick = ( e ) => { 
 				searchBoxController.selectSuggestion( e.currentTarget.innerText );
