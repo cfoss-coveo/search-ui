@@ -11,11 +11,11 @@ Purpose of this repository is to provide MWS pages with the proper JS and CSS as
 
 ### Sponsor / Contact
 
-This project is led by Principal Publisher at Service Canada (ESDC). The key contact in case of questions related to the project is Francis Gorman, who can be reached at francis.gorman@hrsdc-rhdcc.gc.ca. If no reply is received from this person, fallback contact is ESDC.SD.DEV-DEV.DS.EDSC@servicecanada.gc.ca.
+This project is led by Principal Publisher at Service Canada (ESDC). The key contacts in case of questions related to the project are Francis Gorman and Glen Rollins, who can be reached at francis.gorman@hrsdc-rhdcc.gc.ca and glen.rollins@servicecanada.gc.ca respectively.
 
 ### Timeline and frequency
 
-The goal is to continue to refine and improve this code base on a regular basis. Every 6 months, if no activity is recorded on this repository, the key contact shall be reached out to in order to ensure it isn't stale.
+The goal is to continue to refine and improve this codebase on a regular basis. Every 6 months, if no activity is recorded on this repository, the key contacts shall be reached out to in order to ensure it isn't stale.
 
 **Removal date** would align with end of contract with current vendor.
 
