@@ -396,7 +396,7 @@ function initTpl() {
 					<div class="smart-snippet-featured-label-container">
 						<h3 class="smart-snippet-question mrgn-tp-md" id="smart-snippet-question">%[question]</h3>
 					</div>
-					<div class="smart-snippet-answer brdr-bttm brdr-tp" id="smart-snippet-answer" aria-hidden="true" aria-live="polite">
+					<div class="smart-snippet-answer brdr-bttm brdr-tp" id="smart-snippet-answer" aria-live="polite">
 						<div class="smart-snippet-answer-full">
 							%[answer]
 							<div class="smart-snippet-ai-disclaimer">%[smart_snippet_answer_ai_disclaimer]</div>
