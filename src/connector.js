@@ -419,7 +419,7 @@ function initTpl() {
 
 		// Localize 
 		if ( lang === "fr" ) {			
-			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', "Les informations ont été récupérées par l'intelligence artificielle" );
+			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', "Information récupérée en utilisant l'intelligence artificielle." );
 			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_toggle_more]', "Afficher plus" );
 		} else {
 			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', 'The information was retrieved by Artificial Intelligence' );
