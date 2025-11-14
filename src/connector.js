@@ -417,15 +417,14 @@ function initTpl() {
 					</div>
 			</div>`;
 
-			// Localize 
-			if ( lang === "fr" ) {			
-				smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', "Les informations ont été récupérées par l'intelligence artificielle" )
-				smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_toggle_more]', "Afficher plus" )
-			} else {
-				smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', 'The information was retrieved by Artificial Intelligence' )
-				smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_toggle_more]', "Show more" )
-			}
-
+		// Localize 
+		if ( lang === "fr" ) {			
+			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', "Les informations ont été récupérées par l'intelligence artificielle" );
+			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_toggle_more]', "Afficher plus" );
+		} else {
+			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', 'The information was retrieved by Artificial Intelligence' );
+			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_toggle_more]', "Show more" );
+		}
 	}
 
 	// Smart snippet - Question list container
@@ -446,9 +445,9 @@ function initTpl() {
 		
 		// Localize 
 		if ( lang === "fr" ) {			
-			smartSnippetQuestionListContainerHTML = smartSnippetQuestionListContainerHTML.replace( '%[smart_snippet_question_list_title]', 'Les gens demandent aussi' )
+			smartSnippetQuestionListContainerHTML = smartSnippetQuestionListContainerHTML.replace( '%[smart_snippet_question_list_title]', 'Les gens demandent aussi' );
 		} else {
-			smartSnippetQuestionListContainerHTML = smartSnippetQuestionListContainerHTML.replace( '%[smart_snippet_question_list_title]', 'People also ask' )
+			smartSnippetQuestionListContainerHTML = smartSnippetQuestionListContainerHTML.replace( '%[smart_snippet_question_list_title]', 'People also ask' );
 		}
 	}
 
@@ -507,12 +506,12 @@ function initTpl() {
 					</details>
 			</li>`;		
 
-			// Localize 
-			if ( lang === "fr" ) {			
-				smartSnippetQuestionListHTML = smartSnippetQuestionListHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', "Les informations ont été récupérées par l'intelligence artificielle" )
-			} else {
-				smartSnippetQuestionListHTML = smartSnippetQuestionListHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', 'Information retrieved by artificial intelligence.' )
-			}
+		// Localize 
+		if ( lang === "fr" ) {			
+			smartSnippetQuestionListHTML = smartSnippetQuestionListHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', "Les informations ont été récupérées par l'intelligence artificielle" );
+		} else {
+			smartSnippetQuestionListHTML = smartSnippetQuestionListHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', 'Information retrieved by artificial intelligence.' );
+		}
 	}
 
 	// Smart snippets - Questions list container
@@ -645,15 +644,15 @@ function getTextLength( content ){
 		elem = document.createElement( 'div' );
 		elem.innerHTML = String( content );
 	} else {
-		elem = content
+		elem = content;
 	}
 
 	// Get the inside content
-	var fullText = elem.textContent || ''
+	var fullText = elem.textContent || '';
 
 	// Strip out extra whitespace, like indenting
-	fullText = fullText.replace( /[\n\r]+|[\s]{2,}/g, ' ' ).trim()
-	return fullText.length
+	fullText = fullText.replace( /[\n\r]+|[\s]{2,}/g, ' ' ).trim();
+	return fullText.length;
 
 }
 
@@ -1652,14 +1651,14 @@ function updatePagerUrlParam( currentPage ) {
 function insertSmartSnippetValues ( smartSnippetState, standalone = false, truncateLimit = -1) {
 	const { question, answer, source } = smartSnippetState;
 
-	var snippetHTML = (standalone ? smartSnippetHTML : smartSnippetQuestionListHTML)
+	var snippetHTML = (standalone ? smartSnippetHTML : smartSnippetQuestionListHTML);
 	snippetHTML = snippetHTML
 		.replace( '%[question]', DOMPurify.sanitize( question ) )
 		.replace( '%[answer]', DOMPurify.sanitize( answer ) )
 		.replace( '%[answer_truncated]', truncateHtml( DOMPurify.sanitize( answer ), truncateLimit ) );
 
 	if(source) {
-		var displaynavlabel = source?.raw?.displaynavlabel ? source.raw.displaynavlabel.split( '>' ).join( '&nbsp;</li><li>' ) : source.uri
+		var displaynavlabel = source?.raw?.displaynavlabel ? source.raw.displaynavlabel.split( '>' ).join( '&nbsp;</li><li>' ) : source.uri;
 		snippetHTML = snippetHTML.replace( '%[source.raw.displaynavlabel]', displaynavlabel )
 			.split( '%[source.title]' ).join ( source.title )
 			.split( '%[source.uri]' ).join ( source.uri );
@@ -1670,7 +1669,7 @@ function insertSmartSnippetValues ( smartSnippetState, standalone = false, trunc
 
 // Update the "featured" Smart Snippets section
 function updateSmartSnippetState ( newState ) {
-	console.log('newState', newState)
+
 	smartSnippetState = newState;
 	smartSnippetsElement.innerHTML = ''; // Clear contents of SM
 
@@ -1683,8 +1682,8 @@ function updateSmartSnippetState ( newState ) {
 		// If the length of the answer is less that params.smartSnippetToggleLimit, remove toggle controls
 		if( getTextLength( smartSnippetState.answer ) <= params.smartSnippetToggleLimit ) {
 
-			document.querySelector( '.smart-snippet-toggle-height' ).remove()
-			document.querySelector( '.smart-snippet-answer-truncated' ).remove()
+			document.querySelector( '.smart-snippet-toggle-height' ).remove();
+			document.querySelector( '.smart-snippet-answer-truncated' ).remove();
 
 		} else {
 
@@ -1696,23 +1695,23 @@ function updateSmartSnippetState ( newState ) {
 			smartSnippetAnswer.querySelectorAll( "a, link, button, input" ).forEach( ( el ) => {
 				el.setAttribute( 'disabled', 'true' );
 				el.setAttribute( 'tabindex', '-1' );
-			} )
+			} );
 
 			// Handle the 
-			smartSnippetToggleButton.addEventListener( 'click', (event) => {
+			smartSnippetToggleButton.addEventListener( 'click', () => {
 
 				// Expand the container
 				if(smartSnippetsContainerElement.classList.contains( 'smart-snippet-height-limiter' )){
-					smartSnippetsContainerElement.classList.remove( 'smart-snippet-height-limiter' )
+					smartSnippetsContainerElement.classList.remove( 'smart-snippet-height-limiter' );
 					smartSnippetAnswer.setAttribute( "aria-hidden", "false" );
 					smartSnippetAnswer.querySelectorAll( "a, link, button, input" ).forEach( ( el ) => {
 						el.removeAttribute( 'disabled' );
 						el.removeAttribute( 'tabindex' );
-					} )
+					} );
 					smartSnippetToggleButton.setAttribute( "aria-expanded", "true" );
 					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-label' ).innerText = lang === "fr" ? "Afficher moins": "Show less"; 
-					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.remove( 'glyphicon-chevron-down' )
-					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.add( 'glyphicon-chevron-up' )
+					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.remove( 'glyphicon-chevron-down' );
+					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.add( 'glyphicon-chevron-up' );
 					
 				// Collapse the container
 				} else {
@@ -1722,13 +1721,13 @@ function updateSmartSnippetState ( newState ) {
 					smartSnippetAnswer.querySelectorAll( "a, link, button, input" ).forEach( ( el ) => {
 						el.setAttribute( 'disabled', 'true' );
 						el.setAttribute( 'tabindex', '-1' );
-					} )
+					} );
 					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-label' ).innerText = lang === "fr" ? "Afficher plus": "Show more";
-					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.add( 'glyphicon-chevron-down' )
-					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.remove( 'glyphicon-chevron-up' )
-					smartSnippetToggleButton.focus()
+					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.add( 'glyphicon-chevron-down' );
+					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.remove( 'glyphicon-chevron-up' );
+					smartSnippetToggleButton.focus();
 				}
-			} )
+			} );
 
 		}
 	}
@@ -1746,7 +1745,7 @@ function updateSmartSnippetQuestionListState ( newState ) {
 	if( smartSnippetQuestionListState?.questions && smartSnippetQuestionListState?.questions.length > 0 ) {
 		let smartSnippetQuestionListItemsHTML = '';
 		for ( const i in smartSnippetQuestionListState.questions ) {
-			smartSnippetQuestionListItemsHTML += insertSmartSnippetValues( smartSnippetQuestionListState.questions[i], false )
+			smartSnippetQuestionListItemsHTML += insertSmartSnippetValues( smartSnippetQuestionListState.questions[i], false );
 		}
 		smartSnippetQuestionListContainerElement.innerHTML = smartSnippetQuestionListContainerHTML.split( '%[smart_snippet_question_list]' ).join( smartSnippetQuestionListItemsHTML );
 	}
