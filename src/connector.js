@@ -4,6 +4,7 @@ import {
 	buildResultList,
 	buildQuerySummary,
 	buildPager,
+	buildResultsPerPage,
 	buildSearchStatus,
 	buildUrlManager,
 	buildDidYouMean,
@@ -18,10 +19,11 @@ import {
 // Search UI base
 const baseElement = document.querySelector( '[data-gc-search]' );
 
-// General
-const winPath = window.location.pathname;
-const monthsEn = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];
-const monthsFr = [ "janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc." ];
+// Window location variables
+const winLoc = window.location;
+const winPath = winLoc.pathname;
+const winOrigin = winLoc.origin;
+const originPath = winOrigin + winPath;
 
 // Parameters
 const defaults = {
@@ -35,8 +37,10 @@ const defaults = {
 	"enableHistoryPush": true,
 	"isContextSearch": false,
 	"isAdvancedSearch": false,
-	"originLevel3": window.location.origin + winPath,
-	"pipeline": ""
+	"originLevel3": originPath,
+	"pipeline": "",
+	"automaticallyCorrectQuery": false,
+	"numberOfPages": 9
 };
 let lang = document.querySelector( "html" )?.lang;
 let paramsOverride = baseElement ? JSON.parse( baseElement.dataset.gcSearch ) : {};
@@ -72,7 +76,6 @@ let didYouMeanState;
 let pagerState;
 let lastCharKeyUp;
 let activeSuggestion = 0;
-let activeSuggestionWaitMouseMove = true;
 let pagerManuallyCleared = false;
 
 // Firefox patch
@@ -80,9 +83,10 @@ let isFirefox = navigator.userAgent.indexOf( "Firefox" ) !== -1;
 let waitForkeyUp = false;
 
 // UI Elements placeholders 
+const resultSectionID = "wb-land";
 let searchBoxElement;
-let formElement = document.querySelector( '#gc-searchbox, form[action="#wb-land"]' );
-let resultsSection = document.querySelector( '#wb-land' );
+let formElement = document.querySelector( `.page-type-search main [role=search], #gc-searchbox, form[action="#${resultSectionID}"]` );
+let resultsSection = document.querySelector( `#${resultSectionID}` );
 let resultListElement = document.querySelector( '#result-list' );
 let querySummaryElement = document.querySelector( '#query-summary' );
 let pagerElement = document.querySelector( '#pager' );
@@ -100,6 +104,7 @@ let previousPageTemplateHTML = document.getElementById( 'sr-pager-previous' )?.i
 let pageTemplateHTML = document.getElementById( 'sr-pager-page' )?.innerHTML;
 let nextPageTemplateHTML = document.getElementById( 'sr-pager-next' )?.innerHTML;
 let pagerContainerTemplateHTML = document.getElementById( 'sr-pager-container' )?.innerHTML;
+let qsA11yHintHTML = document.getElementById( 'sr-qs-hint' )?.innerHTML;
 
 // Init parameters and UI
 function initSearchUI() {
@@ -107,7 +112,7 @@ function initSearchUI() {
 		return;
 	}
 
-	if ( !lang && window.location.path.includes( "/fr/" ) ) {
+	if ( !lang && winPath.includes( "/fr/" ) ) {
 		paramsDetect.lang = "fr";
 	}
 	if ( lang.startsWith( "fr" ) ) {
@@ -127,7 +132,7 @@ function initSearchUI() {
 			pl = /\+/g,	// Regex for replacing addition symbol with a space
 			search = /([^&=]+)=?([^&]*)/g,
 			decode = function ( s ) { return decodeURIComponent( s.replace( pl, " " ) ); },
-			query = window.location.search.substring( 1 );
+			query = winLoc.search.substring( 1 );
 
 		urlParams = {};
 		hashParams = {};
@@ -137,7 +142,7 @@ function initSearchUI() {
 		while ( match = search.exec( query ) ) {	// eslint-disable-line no-cond-assign
 			urlParams[ decode(match[ 1 ] ) ] = stripHtml( decode( match[ 2 ] ) );
 		}
-		query = window.location.hash.substring( 1 );
+		query = winLoc.hash.substring( 1 );
 
 		while ( match = search.exec( query ) ) {	// eslint-disable-line no-cond-assign
 			hashParams[ decode( match[ 1 ] ) ] = stripHtml( decode( match[ 2 ] ) );
@@ -147,12 +152,17 @@ function initSearchUI() {
 
 	window.onpopstate();
 
+	// Initialize templates
 	initTpl();
 
 	// override origineLevel3 through query parameters 
-	if ( urlParams.originLevel3 ){
+	if ( urlParams.originLevel3 ) {
 		params.originLevel3 = urlParams.originLevel3;
 	}
+	// override sort through query parameters 
+	if (urlParams.sort) {
+		params.sort = urlParams.sort;
+	}						 
 	
 	// Auto detect relative path from originLevel3
 	if( !params.originLevel3.startsWith( "/" ) && /http|www/.test( params.originLevel3 ) ) {
@@ -172,12 +182,20 @@ function initSearchUI() {
 		params.endpoints = getOrganizationEndpoints( params.organizationId, 'prod' );
 	}
 
+	// Show error on load if no access token is provided
+	if ( !params.accessToken ) {
+		showQueryErrorMessage();
+		return;
+	}
+
+	// Initialize the Headless engine
 	initEngine();
 }
 
-// Auto-create parts of search pages templates if not already defined
+// Initialize default templates
 function initTpl() {
 
+	// Auto-create parts of search pages templates if not already defined
 	// Default templates
 	if ( !resultTemplateHTML ) {
 		if ( lang === "fr" ) {
@@ -331,12 +349,21 @@ function initTpl() {
 		}
 	}
 
+	if ( !qsA11yHintHTML ) {
+		if ( lang === "fr" ) {
+			qsA11yHintHTML = 
+				`<p id="sr-qs-hint" class="hidden">Appuyez sur les touches de direction orientées vers le haut et vers le bas pour vous déplacer dans les suggestions de recherche. Appuyez une fois sur la touche Entrée sur une suggestion pour la sélectionner et débuter la recherche.</p>`;
+		}
+		else {
+			qsA11yHintHTML = 
+				`<p id="sr-qs-hint" class="hidden">Press the up and down arrow keys to move through the search suggestions. Press Enter on a suggestion once to select it and start the search.</p>`;
+		}	
+	}
+
 	// auto-create results
 	if ( !resultsSection ) {
 		resultsSection = document.createElement( "section" );
-		resultsSection.id = "wb-land";
-
-		baseElement.prepend( resultsSection );
+		resultsSection.id = resultSectionID;
 	}
 
 	// auto-create query summary element
@@ -373,32 +400,172 @@ function initTpl() {
 		pagerElement = newPagerElement;
 	}
 
-	// auto-create suggestions element
+	// initialize the search box
 	searchBoxElement = document.querySelector( params.searchBoxQuery );
-	if ( !suggestionsElement && searchBoxElement && params.numberOfSuggestions > 0 && !params.isAdvancedSearch ) {
-		searchBoxElement.role = "combobox";
-		searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
 
-		suggestionsElement = document.createElement( "ul" );
-		suggestionsElement.id = "suggestions";
-		suggestionsElement.role = "listbox";
-		suggestionsElement.classList.add( "query-suggestions" );
+	if ( searchBoxElement ) {
 
-		searchBoxElement.after( suggestionsElement );
-		searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
-	}
+		// default searchbox attributes
+		searchBoxElement.setAttribute( 'type', 'search' ); // default, when query suggestions are disabled
 
-	// Close query suggestion box if click elsewhere
-	document.addEventListener( "click", function( evnt ) {
-		if ( suggestionsElement && ( evnt.target.className !== "suggestion-item" && evnt.target.id !== searchBoxElement?.id ) ) {
-			closeSuggestionsBox();
+		// if query suggestions are enabled and not advanced search, auto-create suggestions element and update searchbox attributes
+		if ( params.numberOfSuggestions > 0 && !params.isAdvancedSearch && !suggestionsElement ) {
+			searchBoxElement.setAttribute( 'type', 'text' );
+			searchBoxElement.role = "combobox";
+			searchBoxElement.setAttribute( 'aria-expanded', 'false' );
+			searchBoxElement.setAttribute( 'aria-autocomplete', 'list' );
+
+			suggestionsElement = document.createElement( "ul" );
+			suggestionsElement.id = "suggestions";
+			suggestionsElement.role = "listbox";
+			suggestionsElement.classList.add( "query-suggestions" );
+
+			searchBoxElement.after( suggestionsElement );
+			searchBoxElement.setAttribute( 'aria-controls', 'suggestions' );
+
+			// Add accessibility instructions after query suggestions
+			suggestionsElement.insertAdjacentHTML( 'afterEnd', qsA11yHintHTML );
+			suggestionsElement.setAttribute( "aria-describedby", "sr-qs-hint" );
+
+			// Document-wide listener to close query suggestion box if click elsewhere
+			document.addEventListener( "click", function( evnt ) {
+				if ( suggestionsElement && ( evnt.target.className !== "suggestion-item" && evnt.target.id !== searchBoxElement?.id ) ) {
+					closeSuggestionsBox();
+				}
+			} );
 		}
+	}
+}
+
+// Detect if localStorage is available
+function hasLocalStorage() {
+	try {
+		return typeof localStorage !== 'undefined';
+	} catch ( error ) {
+		return false;
+	}
+}
+
+// Limit actions history array to items newer than 7 days
+function limitCoveoAnalyticsHistory( actionsHistory ) {
+	const now = new Date();
+	const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+
+	return actionsHistory.filter( ( action ) => {
+		const parsedTime = new Date( action.time.replace( /^"|"$/g, "" ) );
+		return parsedTime.getTime() >= sevenDaysAgo;
 	} );
 }
+
+// Saves the actions history array to either localStorage or a cookie, depending on what's available
+function saveCoveoAnalyticsHistory( actionsHistory ) {
+	const key = '__coveo.analytics.history';
+	const serialized = JSON.stringify( actionsHistory );
+
+	// Coveo will use localStorage if available, ignoring cookies
+	if ( hasLocalStorage() ) {
+		localStorage.setItem( key, serialized );
+	} else {
+		// No localStorage, try cookies
+		try {
+			const expiry = 7 * 24 * 60 * 60; // 7-day expiry
+			document.cookie = `${key}=${serialized}; path=/; max-age=${expiry}`;
+		} catch ( error ) {
+			// Do nothing if cookies are disabled
+		}
+	}
+}
+
+// Sanitize query to remove HTML tags
 function sanitizeQuery(q) {
 	return q.replace(/<[^>]*>?/gm, '');
 }
-// Initiate headless engine
+
+// rebuild a clean query string out of a JSON object
+function buildCleanQueryString( paramsObject ) {
+	let urlParam = "";
+	for ( var prop in paramsObject ) {
+		if ( paramsObject[ prop ] ) {
+			if ( urlParam !== "" ) {
+				urlParam += "&";
+			}
+
+			urlParam += prop + "=" + stripHtml( paramsObject[ prop ].replaceAll( '+', ' ' ) );
+		}	
+	}
+	return urlParam;
+}
+
+// Filters out dangerous URIs that can create XSS attacks such as `javascript:`.
+function filterProtocol( uri ) {
+
+	const isAbsolute = /^(https?|mailto|tel):/i.test( uri );
+	const isRelative = /^(\/|\.\/|\.\.\/)/.test( uri );
+
+	return isAbsolute || isRelative ? uri : '';
+}
+
+// Strip HTML tags of a given string
+function stripHtml(html) {
+	let tmp = document.createElement( "DIV" );
+	tmp.innerHTML = html;
+	return tmp.textContent || tmp.innerText || "";
+}
+
+// Focus to H2 heading in results section
+function focusToView() {
+	let focusElement = resultsSection.querySelector( "h2" );
+
+	if( focusElement ) {
+		focusElement.tabIndex = -1;
+		focusElement.focus();
+	}
+}
+
+// Get date converted from GMT (Coveo) to current timezone
+function getDateInCurrentTimeZone( date ) {
+	const offset = date.getTimezoneOffset();
+	return new Date( date.getTime() + ( offset * 60 * 1000 ) );
+}
+
+// get a short date format like YYYY-MM-DD
+function getShortDateFormat( date ){
+	let currentTZDate = getDateInCurrentTimeZone( date );
+	return currentTZDate.toISOString().split( 'T' )[ 0 ];
+}
+
+// get a long date format like May 21, 2024
+function getLongDateFormat( date, lang ){
+	let currentTZDate = getDateInCurrentTimeZone( date );
+	let langCA = lang + "-CA";
+
+	return currentTZDate.toLocaleDateString( langCA, { year: 'numeric', month: 'short', day: 'numeric' } );
+}
+
+// checking for default date , Jan 1st, 1970
+function isEmptyDate( date ) { 
+	return date instanceof Date &&
+	date.getFullYear() === 1970 &&
+	date.getMonth() === 0 &&     // January is 0
+	date.getDate() === 1;
+}
+
+// Convert date parameter to GMT format YYYY/MM/DD
+function getGMTDate( date ) {
+	const paramDate = new Date( date );
+	const GMTDateTime = new Date( paramDate.getTime() - paramDate.getTimezoneOffset()*60*1000 );
+
+	const year = GMTDateTime.getFullYear();
+	const month = GMTDateTime.getMonth() + 1; // Add 1 for 1-indexed month
+	const day = GMTDateTime.getDate();
+
+	const formattedMonth = month < 10 ? '0' + month : month;
+	const formattedDay = day < 10 ? '0' + day : day;
+
+	return `${year}/${formattedMonth}/${formattedDay}`;
+}
+
+// Initiate proprietary Headless engine
 function initEngine() {
 	headlessEngine = buildSearchEngine( {
 		configuration: {
@@ -448,9 +615,12 @@ function initEngine() {
 						let q = requestContent.q;
 						requestContent.q = sanitizeQuery( q );
 
-						// Removes actionsHistory from the request and destroys the cookie/localStorage copies of it
-						requestContent.actionsHistory = []
-						clearCoveoAnalyticsHistory()
+						// Filters out actions history items older than 7 days
+						const actionsHistory = limitCoveoAnalyticsHistory( requestContent.actionsHistory );
+						if ( actionsHistory.length !== requestContent.actionsHistory.length ) {
+							requestContent.actionsHistory = actionsHistory;
+							saveCoveoAnalyticsHistory( actionsHistory );
+						}
 						
 						request.body = JSON.stringify( requestContent );
 					}
@@ -481,18 +651,21 @@ function initEngine() {
 
 	resultListController = buildResultList( headlessEngine, {
 		options: {
-			fieldsToInclude: [ "author", "date", "language", "urihash", "objecttype", "collection", "source", "permanentid", "displaynavlabel", "hostname" ]
+			fieldsToInclude: [ "author", "date", "language", "urihash", "objecttype", "collection", "source", "permanentid", "displaynavlabel", "hostname", "disp_declared_type", "description" ]
 		}
 	} );
 	querySummaryController = buildQuerySummary( headlessEngine );
-	didYouMeanController = buildDidYouMean( headlessEngine, { options: { automaticallyCorrectQuery: false } } );
-	pagerController = buildPager( headlessEngine, { options: { numberOfPages: 9 } } );
+	didYouMeanController = buildDidYouMean( headlessEngine, { options: { automaticallyCorrectQuery: params.automaticallyCorrectQuery } } );
+	pagerController = buildPager( headlessEngine, { options: { numberOfPages: params.numberOfPages } } );
 	statusController = buildSearchStatus( headlessEngine );
 
-	if ( urlParams.allq || urlParams.exctq || urlParams.anyq || urlParams.noneq || urlParams.fqupdate || 
-		urlParams.dmn || urlParams.fqocct || urlParams.elctn_cat || urlParams.filetype || urlParams.site || urlParams.year ) { 
+	// Refine search based on URL parameters for filters, mostly used in Advanced Search to trigger only one search per page load
+	if ( urlParams.allq || urlParams.exctq || urlParams.anyq || urlParams.noneq || urlParams.fqupdate || urlParams.dmn || urlParams.fqocct || urlParams.elctn_cat || urlParams.filetype || urlParams.site || urlParams.year || urlParams.declaredtype || urlParams.startdate || urlParams.enddate || urlParams.dprtmnt ) { 
 		let q = [];
 		let qString = "";
+		let aqString = "";
+		let fqupdate, elctn_cat, filetype, site, year, startDate, endDate;
+
 		if ( urlParams.allq ) {
 			qString = urlParams.allq.replaceAll( '+', ' ' );
 		}
@@ -507,7 +680,6 @@ function initEngine() {
 		}
 
 		qString += q.length ? ' (' + q.join( ')(' ) + ')' : '';
-		let aqString = '';
 
 		if ( urlParams.fqocct ) {
 			if ( urlParams.fqocct === "title_t" ) {
@@ -521,7 +693,8 @@ function initEngine() {
 		}
 
 		if ( urlParams.fqupdate ) {
-			let fqupdate = urlParams.fqupdate.toLowerCase();
+			fqupdate = urlParams.fqupdate.toLowerCase();
+
 			if ( fqupdate === "datemodified_dt:[now-1day to now]" ) {
 				aqString += ' @date>today-1d';
 			}
@@ -539,17 +712,11 @@ function initEngine() {
 			aqString += ' @uri="' + urlParams.dmn + '"';
 		}
 
-		if ( urlParams.sort ) {
-			const sortAction = loadSortCriteriaActions( headlessEngine ).registerSortCriterion( {
-				by: "date",
-				order: "descending",
-			} );
-			headlessEngine.dispatch( sortAction );
-		}
 
 		// Specifically for Elections Canada, allows to search within scope
 		if ( urlParams.elctn_cat ) {
-			let elctn_cat = urlParams.elctn_cat.toLowerCase();
+			elctn_cat = urlParams.elctn_cat.toLowerCase();
+
 			if( elctn_cat === "his" ) {
 				aqString += ' @uri="dir=his"';
 			}
@@ -592,10 +759,14 @@ function initEngine() {
 		}
 
 		if ( urlParams.filetype ) {
-			let filetype = urlParams.filetype.toLowerCase();
+			filetype = urlParams.filetype.toLowerCase();
+
 			if ( filetype === "application/pdf" ) {
 				aqString += ' @filetype==(pdf)';
 			}
+			else if ( filetype === "text/html" ) {
+				aqString += ' @filetype==(html)';
+			}										 	
 			else if ( filetype === "ps" ) {
 				aqString += ' @filetype==(ps)';
 			}
@@ -614,7 +785,8 @@ function initEngine() {
 		}
 
 		if ( urlParams.year ) {
-			const year = Number.parseInt( urlParams.year );
+			year = Number.parseInt( urlParams.year );
+
 			if ( Number.isInteger( year )  && ( year >= 2000 )  && ( year <= ( new Date().getFullYear() + 1 ) ) ) {
 				aqString += ' @uri=".ca/' + urlParams.year + '"';
 			}
@@ -624,8 +796,28 @@ function initEngine() {
 		}
 
 		if ( urlParams.site ) {
-			let site = urlParams.site.toLowerCase().replace( '*', '' );
+			site = urlParams.site.toLowerCase().replace( '*', '' );
 			aqString += ' @canadagazettesite==' + site;
+		}
+		
+		if ( urlParams.startdate ) {
+			startDate = getGMTDate( urlParams.startdate );
+			aqString += ' @date >= "' + startDate + '"';
+		}
+		
+		if ( urlParams.enddate ) {
+			endDate = getGMTDate( urlParams.enddate );
+			aqString += ' @date <= "' + endDate + '"';
+		}
+		
+		if ( urlParams.dprtmnt ) { 
+			aqString += ' @author = "' + urlParams.dprtmnt + '"';
+				
+		}
+		
+		if ( urlParams.declaredtype ) {
+			aqString += ' @declared_type="' + urlParams.declaredtype.replaceAll( /'/g, '&#39;' ) + '"';
+			
 		}
 
 		if ( aqString ) {
@@ -660,19 +852,26 @@ function initEngine() {
 			fragment: fragment(),
 		},
 	} );
+	if ( params.sort ) { 
+		const sortAction = loadSortCriteriaActions( headlessEngine ).registerSortCriterion( {
+			by: "date",
+			order: params.sort ,
+		} );
+		headlessEngine.dispatch( sortAction );
+	}																								
 
 	// Unsubscribe to controllers
 	unsubscribeManager = urlManager.subscribe( () => {
-		if ( !params.enableHistoryPush || window.location.origin.startsWith( 'file://' ) ) {
+		if ( !params.enableHistoryPush || winOrigin.startsWith( 'file://' ) ) {
 			return;
 		}
 
 		let hash = `#${urlManager.state.fragment}`;
 
 		if ( !statusController.state.firstSearchExecuted ) {
-			window.history.replaceState( null, document.title, window.location.origin + winPath + hash );
+			window.history.replaceState( null, document.title, originPath + hash );
 		} else {
-			window.history.pushState( null, document.title, window.location.origin + winPath + hash );
+			window.history.pushState( null, document.title, originPath + hash );
 		}
 	} );
 
@@ -716,6 +915,7 @@ function initEngine() {
 		searchBoxElement.onkeydown = ( e ) => {
 			// Enter
 			if ( e.keyCode === 13 && ( activeSuggestion !== 0 && suggestionsElement && !suggestionsElement.hidden ) ) {
+				selectSuggestion();
 				closeSuggestionsBox();
 				e.preventDefault();
 			}
@@ -731,7 +931,7 @@ function initEngine() {
 			else if ( e.keyCode === 38 ) {
 				if ( !( isFirefox && waitForkeyUp ) ) {
 					waitForkeyUp = true;
-					searchBoxArrowKeyUp();
+					searchBoxArrowKey( "up" );
 					e.preventDefault();
 				}
 			}
@@ -739,7 +939,7 @@ function initEngine() {
 			else if ( e.keyCode === 40 ) {
 				if ( !( isFirefox && waitForkeyUp ) ) {
 					waitForkeyUp = true;
-					searchBoxArrowKeyDown();
+					searchBoxArrowKey( "down" );
 				}
 			}
 		};
@@ -790,119 +990,64 @@ function initEngine() {
 				didYouMeanElement.textContent = "";
 				pagerElement.textContent = "";
 				pagerManuallyCleared = true;
+
+				// Show no results message in Query Summary if no query entered
+				querySummaryElement.innerHTML = noResultTemplateHTML;
+				focusToView();
 			}
 		};
 	}
 }
 
-function clearCoveoAnalyticsHistory(){
-	const storageKey = '__coveo.analytics.history'
-	document.cookie =`${storageKey}=; expires=; domain=; path=/; SameSite=Lax;`
-	localStorage.removeItem(storageKey);
+// Show error message in Query Summary
+function showQueryErrorMessage() {
+	if( !document.getElementById( resultSectionID ) ) {
+		baseElement.prepend( resultsSection );
+	}
+	if ( !querySummaryElement ) {
+		return;
+	}
+
+	querySummaryElement.textContent = "";
+	querySummaryElement.innerHTML = resultErrorTemplateHTML;
+	focusToView();
+	pagerManuallyCleared = false;
 }
 
-function searchBoxArrowKeyUp() {
+function searchBoxArrowKey( direction ) {
 	if ( suggestionsElement.hidden ) {
 		return;
 	}
 
-	if ( !activeSuggestion || activeSuggestion <= 1 ) {
-		activeSuggestion = searchBoxState.suggestions.length;
-	}
-	else {
-		activeSuggestion -= 1;
-	}
-
-	updateSuggestionSelection();
-}
-
-function searchBoxArrowKeyDown() {
-	if ( suggestionsElement.hidden ) {
-		return;
-	}
-
-	if ( !activeSuggestion || activeSuggestion >= searchBoxState.suggestions.length ) {
-		activeSuggestion = 1;
-	}
-	else {
-		activeSuggestion += 1;
-	}
-
-	updateSuggestionSelection();
-}
-
-function updateSuggestionSelection() {
-	// clear current suggestion
-	let activeSelection = suggestionsElement.getElementsByClassName( 'selected-suggestion' );
-	let selectedSuggestionId = 'suggestion-' + activeSuggestion;
-	let suggestionElement = document.getElementById( selectedSuggestionId );
-	Array.prototype.forEach.call(activeSelection, function( suggestion ) {
-		suggestion.classList.remove( 'selected-suggestion' );
-		suggestion.setAttribute( 'aria-selected', "false" );
-	});
-
-	suggestionElement.classList.add( 'selected-suggestion' );
-	suggestionElement.setAttribute( 'aria-selected', "true" );
-	searchBoxElement.setAttribute( 'aria-activedescendant', selectedSuggestionId );
-	searchBoxElement.value = suggestionElement.innerText;
-}
-
-// Show query suggestions if a search action was not executed (if enabled)
-function updateSearchBoxState( newState ) {
-	const previousState = searchBoxState;
-	searchBoxState = newState;
-
-	if ( updateSearchBoxFromState && searchBoxElement && searchBoxElement.value !== newState.value ) {
-		searchBoxElement.value = stripHtml( newState.value );
-		updateSearchBoxFromState = false;
-		return;
-	}
-
-	if ( !suggestionsElement ) {
-		return;
-	}
-
-	if ( lastCharKeyUp === 13 ) {
-		closeSuggestionsBox();
-		return;
-	}
-
-	activeSuggestion = 0;
-	if ( !searchBoxState.isLoadingSuggestions && previousState?.isLoadingSuggestions ) {
-		suggestionsElement.textContent = '';
-		activeSuggestionWaitMouseMove = true;
-		searchBoxState.suggestions.forEach( ( suggestion, index ) => {
-			const currentIndex = index + 1;
-			const suggestionId = "suggestion-" + currentIndex;
-			const node = document.createElement( "li" );
-			node.setAttribute( "class", "suggestion-item" );
-			node.setAttribute( "aria-selected", "false" );
-			node.setAttribute( "aria-setsize", searchBoxState.suggestions.length );
-			node.setAttribute( "aria-posinset", currentIndex );
-			node.role = "option";			
-			node.id = suggestionId;
-			node.onmouseenter = () => {
-				if ( !activeSuggestionWaitMouseMove ) {
-					activeSuggestion = index + 1;
-					updateSuggestionSelection();
-				}
-			};
-			node.onmousemove = () => {
-				activeSuggestionWaitMouseMove = false;
-			};
-			node.onclick = ( e ) => { 
-				searchBoxController.selectSuggestion( e.currentTarget.innerText );
-				searchBoxElement.value = stripHtml( e.currentTarget.innerText );
-			};
-			node.innerHTML = DOMPurify.sanitize( suggestion.highlightedValue );
-			suggestionsElement.appendChild( node );
-		});
-
-		if ( !searchBoxState.isLoading && searchBoxState.suggestions.length > 0 && searchBoxState.value.length >= params.minimumCharsForSuggestions ) {
-			openSuggestionsBox();
+	if ( direction === "up" ) {
+		if ( !activeSuggestion || activeSuggestion <= 1 ) {
+			activeSuggestion = searchBoxState.suggestions.length;
 		}
-		else{
-			closeSuggestionsBox();
+		else {
+			activeSuggestion -= 1;
+		}
+	} else {
+		if ( !activeSuggestion || activeSuggestion >= searchBoxState.suggestions.length ) {
+			activeSuggestion = 1;
+		}
+		else {
+			activeSuggestion += 1;
+		}
+	}
+
+	updateSuggestionSelection();
+}
+
+// Select the active suggestion
+function selectSuggestion() {
+	let suggestionElement = document.getElementById( 'suggestion-' + activeSuggestion );
+
+	if ( suggestionElement ) {
+		const selectedVal = stripHtml( suggestionElement.innerText );
+
+		if ( searchBoxController.state.value !== selectedVal ) {
+			searchBoxController.selectSuggestion( selectedVal );
+			searchBoxElement.value = selectedVal;
 		}
 	}
 }
@@ -921,61 +1066,79 @@ function closeSuggestionsBox() {
 	suggestionsElement.hidden = true;
 	activeSuggestion = 0;
 	searchBoxElement.setAttribute( 'aria-expanded', 'false' );
-	searchBoxElement.setAttribute( 'aria-activedescendant', '' );
+	searchBoxElement.removeAttribute( 'aria-activedescendant' );
 }
 
-// rebuild a clean query string out of a JSON object
-function buildCleanQueryString( paramsObject ) {
-	let urlParam = "";
-	for ( var prop in paramsObject ) {
-		if ( paramsObject[ prop ] ) {
-			if ( urlParam !== "" ) {
-				urlParam += "&";
-			}
+// Update the visual selection of the active suggestion
+function updateSuggestionSelection() {
+	// clear current suggestion
+	let activeSelection = suggestionsElement.getElementsByClassName( 'selected-suggestion' );
+	let selectedSuggestionId = 'suggestion-' + activeSuggestion;
+	let suggestionElement = document.getElementById( selectedSuggestionId );
+	Array.prototype.forEach.call(activeSelection, function( suggestion ) {
+		suggestion.classList.remove( 'selected-suggestion' );
+		suggestion.setAttribute( 'aria-selected', "false" );
+	});
 
-			urlParam += prop + "=" + stripHtml( paramsObject[ prop ].replaceAll( '+', ' ' ) );
-		}	
+	suggestionElement.classList.add( 'selected-suggestion' );
+	suggestionElement.setAttribute( 'aria-selected', "true" );
+	searchBoxElement.setAttribute( 'aria-activedescendant', selectedSuggestionId );
+}
+
+// Update the search box state after search actions - used for QS
+function updateSearchBoxState( newState ) {
+	const previousState = searchBoxState;
+	searchBoxState = newState;
+
+	// Show query suggestions if a search action was not executed (if enabled)
+	if ( updateSearchBoxFromState && searchBoxElement && searchBoxElement.value !== newState.value ) {
+		searchBoxElement.value = stripHtml( newState.value );
+		updateSearchBoxFromState = false;
+		return;
 	}
 
-	return urlParam;
-}
-
-// Filters out dangerous URIs that can create XSS attacks such as `javascript:`.
-function filterProtocol( uri ) {
-
-	const isAbsolute = /^(https?|mailto|tel):/i.test( uri );
-	const isRelative = /^(\/|\.\/|\.\.\/)/.test( uri );
-
-	return isAbsolute || isRelative ? uri : '';
-}
-
-// Strip HTML tags of a given string
-function stripHtml(html) {
-	let tmp = document.createElement( "DIV" );
-	tmp.innerHTML = html;
-	return tmp.textContent || tmp.innerText || "";
-}
-
-// Get date converted from GMT (Coveo) to current timezone
-function getDateInCurrentTimeZone( date ){
-	const offset = date.getTimezoneOffset();
-	return new Date( date.getTime() + ( offset * 60 * 1000 ) );
-}
-
-// get a short date format like YYYY-MM-DD
-function getShortDateFormat( date ){
-	let currentTZDate = getDateInCurrentTimeZone( date );
-	return currentTZDate.toISOString().split( 'T' )[ 0 ];
-}
-
-// get a long date format like May 21, 2024
-function getLongDateFormat( date, lang ){
-	let currentTZDate = getDateInCurrentTimeZone( date );
-	if ( lang === 'en' ) {
-		return monthsEn[ currentTZDate.getMonth() ] + " " + currentTZDate.getDate() + ", " + currentTZDate.getFullYear();
+	if ( !suggestionsElement ) {
+		return;
 	}
 
-	return currentTZDate.getDate() + " " + monthsFr[ currentTZDate.getMonth() ] + " " + currentTZDate.getFullYear();
+	if ( lastCharKeyUp === 13 ) {
+		closeSuggestionsBox();
+		return;
+	}
+
+	// Build suggestions list
+	activeSuggestion = 0;
+	if ( !searchBoxState.isLoadingSuggestions && previousState?.isLoadingSuggestions ) {
+		suggestionsElement.textContent = '';
+		searchBoxState.suggestions.forEach( ( suggestion, index ) => {
+			const currentIndex = index + 1;
+			const suggestionId = "suggestion-" + currentIndex;
+			const node = document.createElement( "li" );
+			node.setAttribute( "class", "suggestion-item" );
+			node.setAttribute( "aria-selected", "false" );
+			node.setAttribute( "aria-setsize", searchBoxState.suggestions.length );
+			node.setAttribute( "aria-posinset", currentIndex );
+			node.role = "option";			
+			node.id = suggestionId;
+			node.onmouseenter = () => {
+				activeSuggestion = index + 1;
+				updateSuggestionSelection();
+			};
+			node.onclick = ( e ) => { 
+				searchBoxController.selectSuggestion( e.currentTarget.innerText );
+				searchBoxElement.value = stripHtml( e.currentTarget.innerText );
+			};
+			node.innerHTML = DOMPurify.sanitize( suggestion.highlightedValue );
+			suggestionsElement.appendChild( node );
+		});
+
+		if ( !searchBoxState.isLoading && searchBoxState.suggestions.length > 0 && searchBoxState.value.length >= params.minimumCharsForSuggestions ) {
+			openSuggestionsBox();
+		}
+		else{
+			closeSuggestionsBox();
+		}
+	}
 }
 
 // Update results list
@@ -991,7 +1154,14 @@ function updateResultListState( newState ) {
 
 	// Clear results list
 	resultListElement.textContent = "";
+
+	// Rebuild results list
 	if( !resultListState.hasError && resultListState.hasResults ) {
+
+		if( !document.getElementById( resultSectionID ) ) {
+			baseElement.prepend( resultsSection );
+		}
+
 		resultListState.results.forEach( ( result, index ) => {
 			const sectionNode = document.createElement( "section" );
 			const highlightedExcerpt = HighlightUtils.highlightString( {
@@ -1016,31 +1186,48 @@ function updateResultListState( newState ) {
 			}
 
 			let breadcrumb = "";
+			let disp_declared_type = "";
+			let description = "";
 			let printableUri = encodeURI( result.printableUri );
-			printableUri = printableUri.replaceAll( '&' , '&amp;' );
 			let clickUri = encodeURI( result.clickUri );
 			let title = stripHtml( result.title );
+
+			printableUri = printableUri.replaceAll( '&' , '&amp;' );
+			printableUri = printableUri.replaceAll( '%252F' , '/' ); // handle slash	
+			printableUri = printableUri.replaceAll( "%252C" , "," ); // handle comma
+			clickUri = clickUri.replaceAll( "%252C" , "%2C" );  // handle comma
+			clickUri = clickUri.replaceAll( "%252F" , "%2F" );  // handle slash
+
 			if ( result.raw.hostname && result.raw.displaynavlabel ) {
 				const splittedNavLabel = ( Array.isArray( result.raw.displaynavlabel ) ? result.raw.displaynavlabel[0] : result.raw.displaynavlabel).split( '>' );
 				breadcrumb = '<ol class="location"><li>' + stripHtml( result.raw.hostname ) + 
 					'&nbsp;</li><li>' + stripHtml( splittedNavLabel[splittedNavLabel.length-1] ) + '</li></ol>';
-			}
-			else {
+			} else {
 				breadcrumb = '<p class="location"><cite><a href="' + clickUri + '">' + printableUri + '</a></cite></p>';
 			}
 
+			if ( result.raw.disp_declared_type  ) {
+				disp_declared_type = stripHtml( result.raw.disp_declared_type );
+			}
+			if ( result.raw.description ) {
+				description = stripHtml( result.raw.description );
+			}
+
+			// Searh result template mappings
 			sectionNode.innerHTML = resultTemplateHTML
 				.replace( '%[index]', index + 1 )
-				.replace( 'https://www.canada.ca', filterProtocol( clickUri ) ) // workaround, invalid href are stripped
+				.replace( 'https://www.canada.ca', filterProtocol( clickUri ) ) // invalid href are stripped
 				.replace( '%[result.clickUri]', filterProtocol( clickUri ) )
 				.replace( '%[result.title]', title )
 				.replace( '%[result.raw.author]', author )
 				.replace( '%[result.breadcrumb]', breadcrumb )
 				.replace( '%[result.printableUri]', printableUri )
-				.replace( '%[short-date-en]', getShortDateFormat( resultDate ) )
-				.replace( '%[short-date-fr]', getShortDateFormat( resultDate ) )
-				.replace( '%[long-date-en]', getLongDateFormat( resultDate, 'en' ) )
-				.replace( '%[long-date-fr]', getLongDateFormat( resultDate, 'fr' ) )
+				.replace( '%[result.raw.disp_declared_type]', disp_declared_type )
+				.replace( '%[result.raw.description]', description )
+				.replaceAll( '%[short-date-en]', isEmptyDate(resultDate) ? '' : getShortDateFormat( resultDate ) )
+				.replaceAll( '%[short-date-fr]', isEmptyDate(resultDate) ? '' : getShortDateFormat( resultDate ) )
+				.replace( '%[long-date-en]', isEmptyDate(resultDate) ? '' : getLongDateFormat( resultDate, 'en' ) )
+				.replace( '%[long-date-fr]', isEmptyDate(resultDate) ? '' : getLongDateFormat( resultDate, 'fr' ) )
 				.replace( '%[highlightedExcerpt]', highlightedExcerpt );
 
 			const interactiveResult = buildInteractiveResult(
@@ -1050,6 +1237,7 @@ function updateResultListState( newState ) {
 			);
 
 			let resultLink = sectionNode.querySelector( ".result-link" );
+
 			resultLink.onclick = () => { interactiveResult.select(); };
 			resultLink.oncontextmenu = () => { interactiveResult.select(); };
 			resultLink.onmousedown = () => { interactiveResult.select(); };
@@ -1062,15 +1250,18 @@ function updateResultListState( newState ) {
 	}
 }
 
-// Update heading that has number of results displayed
+// Update heading that has number of results displayed (Query Summary)
 function updateQuerySummaryState( newState ) {
 	querySummaryState = newState;
 
-	if ( !querySummaryElement ) {
-		return;
-	}
-
 	if ( resultListState.firstSearchExecuted && !querySummaryState.isLoading && !querySummaryState.hasError ) {
+
+		if ( !querySummaryElement ) {
+			return;
+		}
+		if( !document.getElementById( resultSectionID ) ) {
+			baseElement.prepend( resultsSection );
+		}
 		querySummaryElement.textContent = "";
 		if ( querySummaryState.total > 0 ) {
 			// Manually ask pager to redraw since even is not sent when manually cleared
@@ -1079,6 +1270,7 @@ function updateQuerySummaryState( newState ) {
 			}
 
 			let numberOfResults = querySummaryState.total.toLocaleString( params.lang );
+
 			// Generate the text content
 			const querySummaryHTML = ( ( querySummaryState.query !== "" && !params.isAdvancedSearch ) ? querySummaryTemplateHTML : noQuerySummaryTemplateHTML )
 				.replace( '%[numberOfResults]', numberOfResults )
@@ -1091,32 +1283,18 @@ function updateQuerySummaryState( newState ) {
 			if ( queryElement ){
 				queryElement.textContent = querySummaryState.query;
 			}
-		}
-		else {
+		} else {
 			querySummaryElement.innerHTML = noResultTemplateHTML;
 		}
 		focusToView();
 		pagerManuallyCleared = false;
 	}
 	else if ( querySummaryState.hasError ) {
-		querySummaryElement.textContent = "";
-		querySummaryElement.innerHTML = resultErrorTemplateHTML;
-		focusToView();
-		pagerManuallyCleared = false;
+		showQueryErrorMessage();
 	}
 }
 
-// Focus to H2 heading in results section
-function focusToView() {
-	let focusElement = resultsSection.querySelector( "h2" );
-
-	if( focusElement ) {
-		focusElement.tabIndex = -1;
-		focusElement.focus();
-	}
-}
-
-// update did you mean
+// update "Did you mean" recommendation
 function updateDidYouMeanState( newState ) {
 	didYouMeanState = newState;
 
@@ -1139,7 +1317,7 @@ function updateDidYouMeanState( newState ) {
 	}
 }
 
-// Update pagination
+// Update Pagination section
 function updatePagerState( newState ) {
 	pagerState = newState;
 	if ( pagerState.maxPage === 0 ) {
@@ -1162,6 +1340,10 @@ function updatePagerState( newState ) {
 
 		buttonNode.onclick = () => { 
 			pagerController.previousPage();
+			
+			if ( params.isAdvancedSearch ) {
+				updatePagerUrlParam( pagerState.currentPage );
+			}
 		};
 
 		pagerComponentElement.appendChild( liNode );
@@ -1189,6 +1371,10 @@ function updatePagerState( newState ) {
 
 		buttonNode.onclick = () => {
 			pagerController.selectPage( pageNo );
+			
+			if ( params.isAdvancedSearch ) {
+				updatePagerUrlParam( pagerState.currentPage );
+			}
 		};
 
 		pagerComponentElement.appendChild( liNode );
@@ -1203,10 +1389,29 @@ function updatePagerState( newState ) {
 
 		buttonNode.onclick = () => { 
 			pagerController.nextPage(); 
+			
+			if ( params.isAdvancedSearch ) {
+				updatePagerUrlParam( pagerState.currentPage );
+			}
 		};
 
 		pagerComponentElement.appendChild( liNode );
 	}
+}
+
+// Update the URL parameter for pagination in advanced search mode
+function updatePagerUrlParam( currentPage ) {
+	const resultsPerPage = buildResultsPerPage(headlessEngine);
+	const { numberOfResults } = resultsPerPage.state;
+	const urlParams = new URLSearchParams( winLoc.search );
+	const paramName = 'firstResult';
+	const pageNum = ( currentPage - 1 ) * numberOfResults;
+
+	// Set the value of the parameter. If it doesn't exist, it will be added.
+	urlParams.set( paramName, pageNum );
+
+	const newSearch = urlParams.toString();
+	window.history.replaceState( {}, '', `${winPath}?${newSearch}${winLoc.hash}` );
 }
 
 // Run Search UI

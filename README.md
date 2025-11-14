@@ -11,17 +11,17 @@ Purpose of this repository is to provide MWS pages with the proper JS and CSS as
 
 ### Sponsor / Contact
 
-This project is led by Principal Publisher at Service Canada (ESDC). The key contact in case of questions related to the project is Francis Gorman, who can be reached at francis.gorman@hrsdc-rhdcc.gc.ca. If no reply is received from this person, fallback contact is ESDC.SD.DEV-DEV.DS.EDSC@servicecanada.gc.ca.
+This project is led by Principal Publisher at Service Canada (ESDC). The key contacts in case of questions related to the project are Francis Gorman and Glen Rollins, who can be reached at francis.gorman@hrsdc-rhdcc.gc.ca and glen.rollins@servicecanada.gc.ca respectively.
 
 ### Timeline and frequency
 
-The goal is to continue to refine and improve this code base on a regular basis. Every 6 months, if no activity is recorded on this repository, the key contact shall be reached out to in order to ensure it isn't stale.
+The goal is to continue to refine and improve this codebase on a regular basis. Every 6 months, if no activity is recorded on this repository, the key contacts shall be reached out to in order to ensure it isn't stale.
 
 **Removal date** would align with end of contract with current vendor.
 
 ### Improvement plan
 
-To manage development activities related to this project, a standard internal issue tracking system used at Principal Publisher will be used. Also, regular touchpoints with the search vendor, as well as formal service requests entered through their portal, could also spark some development activities from a vendor perspective.
+To manage development activities related to this project, a standard internal issue tracking system used at Principal Publisher will be used. Also, regular touchpoints with the search vendor, as well as formal service requests entered through their portal, could spark development activities from the vendor's team.
 
 Example of code contributions may be related to:
 
@@ -29,15 +29,15 @@ Example of code contributions may be related to:
 - bug fixes, accessibility and security improvements
 - project maintenance chores
 
-For more details, please [consult full checklist of to do items](todo.md).
+For more details, please [consult the checklist of "to do" items](todo.md).
 
 ## Releases and API
 
 All changes contributed through Pull requests will be packaged as releases. Releases are completed through the "Releases" tab in this GitHub repository; then, deployment to MWS follows the reguar release management cycle accordingly.
 
-Each new verion of this project is defined based on an evaluaton of the impacts of changes against any formerly up-to-date LIVE Search UI implementation on Canada.ca. The scope constitutes of all files within the "dist" folder (distribution files), which are JavaScript scripts and CSS styles. Additionally, volume of usage for features can also be taken into consideration as part of the evaluation of impact on versioning. For example, an interactive feature from the Javascript which is known by certitude to have never been used in a production environment, wouldn't cause any breaking change if modified and therefore, wouldn't generate a major version.
+Each new verion of this project is defined based on an evaluaton of the impacts of changes against any formerly up-to-date LIVE Search UI implementation on Canada.ca. The scope constitutes of all files within the "dist" folder (distribution files), which are JavaScript scripts and CSS style sheets. Additionally, volume of usage for features can also be taken into consideration as part of the evaluation of impact on versioning. For example, an interactive feature from the Javascript which is known by certitude to have never been used in a production environment, wouldn't cause any breaking change if modified and therefore, wouldn't generate a major version necessarily.
 
-Search UI follows [Semantic Versioning 2.0.0](https://semver.org/)
+Aside from the evaluation based on usage, Search UI follows [Semantic Versioning 2.0.0](https://semver.org/)
 
 ---
 
@@ -120,6 +120,10 @@ They must be used within the `[data-gc-search]` attribute. See the **/test/src-e
 : Set the search behavior of the page as an advanced search. This is optional since it will detect automatically from the path of your page if it is advanced. If not determined, default is: `false`
 - `originLevel3`
 : Allows for mimicking a specific search page/context, such as the ESDC contextual search if you set it to: `/en/employment-social-development/search.html`; this value can be be relative or absolute and is used to differentiate and contextualize a search page from another both in terms of scoping the search results and in terms of knowledge base for machine learning-powered features. Default is set to the current page's absolute URL
+- `numberOfPages`
+: The number of pages to display in the pager. Default is 9
+- `automaticallyCorrectQuery`
+: Whether to automatically apply corrections for queries that would otherwise return no results. Default is false
 
 #### Templates
 
@@ -138,15 +142,15 @@ For example, to override the search results template, you would do something alo
 Template override should technically only be used on a few instances of the search pages. If all pages would benefit from a template override, then the recommended action would be to modify the default template HTML code at the source through a pull request.
 
 - `sr-single`
-: Template for all search results individually
+: Template for all search results individually; your custom template MUST include an hyperlink with the class `result-link`, which SHOULD also include the data attribute `data-dtm-srchlnknm` for analytis tracking
 - `sr-nores`
-: For when there is no results to show
+: For when there is no results to show; your custom template MUST include a heading of level H2
 - `sr-error`
-: For when an error occurs in the communication between the search page and the search engine
+: For when an error occurs in the communication between the search page and the search engine; your custom template MUST include a heading of level H2
 - `sr-query-summary`
-: For the summary zone above the search results. Recommended to include an H2 tag for accessibility purposes
+: For the summary zone above the search results; your custom template MUST include a heading of level H2
 - `sr-noquery-summary`
-: For the summary zone above the search results on advanced search pages. Recommended to include an H2 tag for accessibility purposes
+: For the summary zone above the search results on advanced search pages; your custom template MUST include a heading of level H2
 - `sr-did-you-mean`
 : For the "Did you mean" suggestion section
 - `sr-pager-previous`
@@ -157,6 +161,8 @@ Template override should technically only be used on a few instances of the sear
 : For the next page button
 - `sr-pager-container`
 : For the wrapper of all pagniation button
+- `sr-qs-hint`
+: Message announced to screen reader to provide instructions on QS
 
 As demonstrated in the example above, and by looking at the default templates, you'll notice that some variables can be used within the templates to be replaced by dynamic content coming from the search engine's API response.
 
@@ -196,6 +202,10 @@ Here is the extensive list of what variables can be used in templates:
 : returns what the search engine considers a better search query in case a low amount or zero results show (based on criteria handled within the serach engine). To be used on Did you mean template
 - `page`
 : returns page number. To be used on Pagination template
+- `result.raw.disp_declared_type`
+: returns name of the declared type as defined in the meta data of the page (specific to News items)
+- `result.raw.description`
+: returns the meta description of the pages in the results; can be displayed instead of the default "matches excerpt".
 
 #### Parameters
 
@@ -218,7 +228,7 @@ Sometimes your search pages contain more than one input relevant to the search's
 - `dmn`
 : Search for search terms in input, only on a specific domain
 - `sort`
-: Sort search results based on different criteria. Options are: by relevance (default when undefined) or by date when parameter is set
+: Sort search results based on different criteria. Options are: by relevance (default when undefined) or by date when parameter is set to `descending` or `ascending`
 - `elctn_cat`
 : Used specifically for Elections Canada, to define a scope of search amongst their collection. See **/src/connector.js** to see all the options available
 - `site`
@@ -229,6 +239,12 @@ Sometimes your search pages contain more than one input relevant to the search's
 : Search , within documents of a certain file type. Options are: `application/pdf`, `ps`, `application/msword`, `application/vnd.ms-excel`, `application/vnd.ms-powerpoint`, `application/rtf`
 - `originLevel3`
 : Allows for mimicking a specific search page/context by setting its path through this URL parameter; this takes precedence over the configuration through data attribute
+- `startdate`
+: returns results that have a date meta data higher than or equal to the date provided
+- `enddate`
+: returns results that have a date meta data lower than or equal to the date provided
+- `declaredtype`
+: returns results based on the type provided, mapped to disp_declared_type behind the scenes (specific to News items)
 
 ### Other
 

@@ -3,7 +3,6 @@
  */
  .query-suggestions {
 	background-color: white;
-	border-bottom: 1px solid #ccc;
 	border-left: 1px solid #ccc;
 	border-right: 1px solid #ccc;
 	cursor: pointer;
@@ -15,11 +14,23 @@
 	width: 100%;
 	z-index: 60;
 }
+.query-suggestions:has(li) {
+    border-bottom: 1px solid #ccc;
+}
 .query-suggestions li {
 	padding: 5px 10px;
 }
 .query-suggestions li:hover {
 	background-color: #ddd;
+}
+.query-suggestions .suggestion-item::before {
+	content: "\e003";
+	font-family: "Glyphicons Halflings";
+	font-size: 0.8em;
+	line-height: 1;
+	margin-right: 12px;
+	position: relative;
+	top: 1px;
 }
 .query-suggestions .selected-suggestion {
 	background-color: #ddd;
