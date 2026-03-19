@@ -412,6 +412,7 @@ function initTpl() {
 						</button>
 					</div>
 					<div class="smart-snippet-source brdr-tp">
+					<h4 class="wb-inv">%[smart_snippet_taken_from]</h4> 
 						<div class="mrgn-tp-md"><a class="smart-snippet-source-link" tabindex="0" aria-label="%[source.title]" title="%[source.title]" href="%[source.uri]">%[source.title]</a></div>
 						<ol class="smart-snippet-source-breadcrumbs location"><li>%[source.raw.displaynavlabel]</li></ol> 
 					</div>
@@ -421,9 +422,11 @@ function initTpl() {
 		if ( lang === "fr" ) {			
 			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', "Information récupérée en utilisant l'intelligence artificielle." );
 			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_toggle_more]', "Afficher plus" );
+			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_taken_from]', "Provenant de :" );
 		} else {
 			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_answer_ai_disclaimer]', 'Information retrieved by artificial intelligence.' );
 			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_toggle_more]', "Show more" );
+			smartSnippetHTML = smartSnippetHTML.replace( '%[smart_snippet_taken_from]', "Taken from:" );
 		}
 	}
 
@@ -1705,6 +1708,11 @@ function updateSmartSnippetState ( newState ) {
 						el.removeAttribute( 'disabled' );
 						el.removeAttribute( 'tabindex' );
 					} );
+					const smartSnippetTitle = document.getElementById( 'smart-snippet-question' );
+					if ( smartSnippetTitle ) {
+						smartSnippetTitle.tabIndex = -1;
+						smartSnippetTitle.focus();
+					}
 					
 				// Collapse the container
 				} else {
