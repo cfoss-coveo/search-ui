@@ -232,7 +232,7 @@ function initTpl() {
 	if ( !noResultTemplateHTML ) {
 		if ( lang === "fr" ) {
 			noResultTemplateHTML = 
-				`<section class="alert alert-warning">
+				`<div class="alert alert-warning">
 					<h2>Aucun résultat</h2>
 					<p>Aucun résultat ne correspond à vos critères de recherche.</p>
 					<p>Suggestions&nbsp;:</p>
@@ -243,11 +243,11 @@ function initTpl() {
 						<li>Consultez les&nbsp;<a href="/fr/sr/tr.html"> trucs de recherche </a></li>
 						<li>Essayez la <a href="/fr/sr/srb/sra.html">recherche avancée</a></li>
 					</ul>
-				</section>`;
+				</div>`;
 		}
 		else {
 			noResultTemplateHTML = 
-				`<section class="alert alert-warning">
+				`<div class="alert alert-warning">
 					<h2>No results</h2>
 					<p>No pages were found that match your search terms.</p>
 					<p>Suggestions:</p>
@@ -258,24 +258,24 @@ function initTpl() {
 						<li>Consult the&nbsp;<a href="/en/sr/st.html">search tips</a></li>
 						<li>Try the&nbsp;<a href="/en/sr/srb/sra.html">advanced search</a></li>
 					</ul>
-				</section>`;
+				</div>`;
 		}
 	}
 
 	if ( !resultErrorTemplateHTML ) {
 		if ( lang === "fr" ) {
 			resultErrorTemplateHTML = 
-				`<section class="alert alert-warning">
+				`<div class="alert alert-warning">
 					<h2>Nous éprouvons actuellement des problèmes avec la fonction de recherche sur le site Web Canada.ca</h2>
 					<p>L'équipe chargée de rétablir les services touchés travaille de façon à résoudre le problème aussi rapidement que possible. Nous vous prions de nous excuser pour tout inconvénient.</p>
-				</section>`;
+				</div>`;
 		}
 		else {
 			resultErrorTemplateHTML = 
-				`<section class="alert alert-warning">
+				`<div class="alert alert-warning">
 					<h2>The Canada.ca Search is currently experiencing issues</h2>
 					<p>A resolution for the restoration is presently being worked.	We apologize for any inconvenience.</p>
-				</section>`;
+				</div>`;
 		}
 	}
 
@@ -293,11 +293,11 @@ function initTpl() {
 	if ( !didYouMeanTemplateHTML ) {
 		if ( lang === "fr" ) {
 			didYouMeanTemplateHTML = 
-				`<p class="h5">Rechercher plutôt <button class="btn btn-lg btn-link p-0 mrgn-bttm-sm" type="button">%[correctedQuery]</button> ?</p>`;
+				`<p>Rechercher plutôt <button class="btn btn-lg btn-link" type="button">%[correctedQuery]</button> ?</p>`;
 		}
 		else {
 			didYouMeanTemplateHTML = 
-				`<p class="h5">Did you mean <button class="btn btn-lg btn-link p-0 mrgn-bttm-sm" type="button">%[correctedQuery]</button> ?</p>`;
+				`<p>Did you mean <button class="btn btn-lg btn-link" type="button">%[correctedQuery]</button> ?</p>`;
 		}
 	}
 
@@ -315,11 +315,11 @@ function initTpl() {
 	if ( !previousPageTemplateHTML ) {
 		if ( lang === "fr" ) {
 			previousPageTemplateHTML = 
-				`<button class="page-button previous-page-button">Précédente<span class="wb-inv">: Page précédente des résultats de recherche</span></ button>`;
+				`<button class="page-button paginate-prev">Précédente<span class="wb-inv">: Page précédente des résultats de recherche</span></ button>`;
 		}
 		else {
 			previousPageTemplateHTML = 
-				`<button class="page-button previous-page-button">Previous<span class="wb-inv">: Previous page of search results</span></ button>`;
+				`<button class="page-button paginate-prev">Previous<span class="wb-inv">: Previous page of search results</span></ button>`;
 		}
 	}
 
@@ -337,18 +337,18 @@ function initTpl() {
 	if ( !nextPageTemplateHTML ) {
 		if ( lang === "fr" ) {
 			nextPageTemplateHTML = 
-				`<button class="page-button next-page-button">Suivante<span class="wb-inv">: Page suivante des résultats de recherche</span></ button>`;
+				`<button class="page-button paginate-next">Suivante<span class="wb-inv">: Page suivante des résultats de recherche</span></ button>`;
 		}
 		else {
 			nextPageTemplateHTML = 
-				`<button class="page-button next-page-button">Next<span class="wb-inv">: Next page of search results</span></ button>`;
+				`<button class="page-button paginate-next">Next<span class="wb-inv">: Next page of search results</span></ button>`;
 		}
 	}
 
 	if ( !pagerContainerTemplateHTML ) {
 		if ( lang === "fr" ) {
 			pagerContainerTemplateHTML = 
-				`<div class="text-center" >
+				`<div class="text-center wb-paginate-pager" >
 					<p class="wb-inv">Pagination des résultats de recherche</p>
 					<ul id="pager" class="pagination mrgn-bttm-0">
 					</ul>
@@ -356,7 +356,7 @@ function initTpl() {
 		}
 		else {
 			pagerContainerTemplateHTML = 
-				`<div class="text-center" >
+				`<div class="text-center wb-paginate-pager" >
 					<p class="wb-inv">Search results pages</p>
 					<ul id="pager" class="pagination mrgn-bttm-0">
 					</ul>
@@ -396,7 +396,7 @@ function initTpl() {
 					<div class="smart-snippet-featured-label-container">
 						<h3 class="smart-snippet-question mrgn-tp-md" id="smart-snippet-question">%[question]</h3>
 					</div>
-					<div class="smart-snippet-answer brdr-bttm brdr-tp" id="smart-snippet-answer" aria-live="polite">
+					<div class="smart-snippet-answer brdr-tp" id="smart-snippet-answer" aria-live="polite">
 						<div class="smart-snippet-answer-full">
 							%[answer]
 							<div class="text-muted mrgn-tp-lg small mrgn-bttm-0">%[smart_snippet_answer_ai_disclaimer]</div>
@@ -405,13 +405,13 @@ function initTpl() {
 							%[answer_truncated]
 						</div>
 					</div>
-					<div class="smart-snippet-toggle-height mrgn-tp-lg">
+					<div class="smart-snippet-toggle-height mrgn-tp-md mrgn-bttm-md">
 						<button class="smart-snippet-toggle btn btn-link" id="smart-snippet-toggle" aria-expanded="false" aria-controls="smart-snippet-container" role="button">
 							<span id="smart-snippet-toggle-label">%[smart_snippet_toggle_more]</span>
 							<span id="smart-snippet-toggle-icon" class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
 						</button>
 					</div>
-					<div class="smart-snippet-source">
+					<div class="smart-snippet-source brdr-tp">
 						<div class="mrgn-tp-md"><a class="smart-snippet-source-link" tabindex="0" aria-label="%[source.title]" title="%[source.title]" href="%[source.uri]">%[source.title]</a></div>
 						<ol class="smart-snippet-source-breadcrumbs location"><li>%[source.raw.displaynavlabel]</li></ol> 
 					</div>
@@ -1560,26 +1560,39 @@ function updatePagerState( newState ) {
 		pagerElement.innerHTML = pagerContainerTemplateHTML;
 	}
 
-	let pagerComponentElement = pagerElement.querySelector( "#pager" );
+	let prevLiNode = document.createElement( "li" ),
+		nextLiNode = document.createElement( "li" ),
+		pagerComponentElement = pagerElement.querySelector( "#pager" );
+
 	pagerComponentElement.textContent = "";
+	prevLiNode.innerHTML = previousPageTemplateHTML;
+	nextLiNode.innerHTML = nextPageTemplateHTML;
 
-	if ( pagerState.hasPreviousPage ) {
-		const liNode = document.createElement( "li" );
-
-		liNode.innerHTML = previousPageTemplateHTML;
-
-		const buttonNode = liNode.querySelector( 'button' );
-
-		buttonNode.onclick = () => { 
-			pagerController.previousPage();
-			
-			if ( params.isAdvancedSearch ) {
-				updatePagerUrlParam( pagerState.currentPage );
-			}
-		};
-
-		pagerComponentElement.appendChild( liNode );
+	if ( !pagerState.hasPreviousPage ) {
+		prevLiNode.classList.add( "disabled" );
 	}
+
+	if ( !pagerState.hasNextPage ) {
+		nextLiNode.classList.add( "disabled" );
+	}
+
+	prevLiNode.querySelector( "button" ).onclick = () => { 
+		pagerController.previousPage();
+		
+		if ( params.isAdvancedSearch ) {
+			updatePagerUrlParam( pagerState.currentPage );
+		}
+	};
+
+	nextLiNode.querySelector( "button" ).onclick = () => { 
+		pagerController.nextPage(); 
+		
+		if ( params.isAdvancedSearch ) {
+			updatePagerUrlParam( pagerState.currentPage );
+		}
+	};
+
+	pagerComponentElement.appendChild( prevLiNode );
 
 	pagerState.currentPages.forEach( ( page ) => {
 		const liNode = document.createElement( "li" );
@@ -1612,23 +1625,7 @@ function updatePagerState( newState ) {
 		pagerComponentElement.appendChild( liNode );
 	} );
 
-	if ( pagerState.hasNextPage ) {
-		const liNode = document.createElement( "li" );
-
-		liNode.innerHTML = nextPageTemplateHTML;
-
-		const buttonNode = liNode.querySelector( 'button' );
-
-		buttonNode.onclick = () => { 
-			pagerController.nextPage(); 
-			
-			if ( params.isAdvancedSearch ) {
-				updatePagerUrlParam( pagerState.currentPage );
-			}
-		};
-
-		pagerComponentElement.appendChild( liNode );
-	}
+	pagerComponentElement.appendChild( nextLiNode );
 }
 
 // Update the URL parameter for pagination in advanced search mode
@@ -1701,16 +1698,18 @@ function updateSmartSnippetState ( newState ) {
 
 				// Expand the container
 				if(smartSnippetsContainerElement.classList.contains( 'smart-snippet-height-limiter' )){
+					document.querySelector( '.smart-snippet-toggle-height' ).remove();
 					smartSnippetsContainerElement.classList.remove( 'smart-snippet-height-limiter' );
 					smartSnippetAnswer.setAttribute( "aria-hidden", "false" );
 					smartSnippetAnswer.querySelectorAll( "a, link, button, input" ).forEach( ( el ) => {
 						el.removeAttribute( 'disabled' );
 						el.removeAttribute( 'tabindex' );
 					} );
-					smartSnippetToggleButton.setAttribute( "aria-expanded", "true" );
-					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-label' ).innerText = lang === "fr" ? "Afficher moins": "Show less"; 
-					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.remove( 'glyphicon-chevron-down' );
-					smartSnippetToggleButton.querySelector( '#smart-snippet-toggle-icon' ).classList.add( 'glyphicon-chevron-up' );
+					const smartSnippetTitle = document.getElementById( 'smart-snippet-question' );
+					if ( smartSnippetTitle ) {
+						smartSnippetTitle.tabIndex = -1;
+						smartSnippetTitle.focus();
+					}
 					
 				// Collapse the container
 				} else {
