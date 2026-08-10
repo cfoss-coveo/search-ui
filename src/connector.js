@@ -456,8 +456,8 @@ function initTpl() {
 	// Smart snippet - Question list container
 	if ( params.enableSmartSnippets && !smartSnippetQuestionListContainerHTML ) {
 		smartSnippetQuestionListContainerHTML = 
-				`<aside>
-					<section class="panel panel-default">
+				`<section>
+					<div class="panel panel-default">
 						<header class="panel-heading">
 								<h2 class="panel-title">%[smart_snippet_question_list_title]</h2>
 						</header>
@@ -466,8 +466,8 @@ function initTpl() {
 									%[smart_snippet_question_list]
 								</ul>
 						</div>
-					</section>
-				</aside>`;
+					</div>
+				</section>`;
 		
 		// Localize 
 		if ( lang === "fr" ) {			
