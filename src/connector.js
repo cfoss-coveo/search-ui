@@ -12,10 +12,11 @@ import {
 	buildDidYouMean,
 	buildContext,
 	buildInteractiveResult,
+	buildNotifyTrigger,
 	loadAdvancedSearchQueryActions,
 	loadSortCriteriaActions,
-	HighlightUtils,
-	getOrganizationEndpoints
+	loadGenericAnalyticsActions,
+	HighlightUtils
 } from './headless.esm.js';
 
 // Search UI base
@@ -65,6 +66,7 @@ let pagerController;
 let smartSnippetController;
 let smartSnippetQuestionListController;
 let statusController;
+let notifyTriggerController;
 let urlManager;
 let unsubscribeManager;
 let unsubscribeSearchBoxController;
@@ -72,6 +74,7 @@ let unsubscribeResultListController;
 let unsubscribeQuerySummaryController;
 let unsubscribeDidYouMeanController;
 let unsubscribePagerController;
+let unsubscribeNotifyTriggerController;
 let unsubscribeSmartSnippetController;
 let unsubscribeSmartSnippetQuestionListController;
 
@@ -80,6 +83,7 @@ let updateSearchBoxFromState = false;
 let searchBoxState;
 let resultListState;
 let querySummaryState;
+let notificationState;
 let didYouMeanState;
 let pagerState;
 let smartSnippetState;
@@ -99,6 +103,7 @@ let formElement = document.querySelector( `.page-type-search main [role=search],
 let resultsSection = document.querySelector( `#${resultSectionID}` );
 let resultListElement = document.querySelector( '#result-list' );
 let querySummaryElement = document.querySelector( '#query-summary' );
+let notificationTriggerElement = document.querySelector( '#notification-trigger' );
 let pagerElement = document.querySelector( '#pager' );
 let suggestionsElement = document.querySelector( '#suggestions' );
 let didYouMeanElement = document.querySelector( '#did-you-mean' );
@@ -109,6 +114,7 @@ let smartSnippetQuestionListContainerElement = document.querySelector( '#smart-s
 let resultTemplateHTML = document.getElementById( 'sr-single' )?.innerHTML;
 let noResultTemplateHTML = document.getElementById( 'sr-nores' )?.innerHTML;
 let resultErrorTemplateHTML = document.getElementById( 'sr-error' )?.innerHTML;
+let notificationTriggerTemplateHTML = document.getElementById( 'sr-notification-trigger' )?.innerHTML;
 let querySummaryTemplateHTML = document.getElementById( 'sr-query-summary' )?.innerHTML;
 let didYouMeanTemplateHTML = document.getElementById( 'sr-did-you-mean' )?.innerHTML;
 let noQuerySummaryTemplateHTML = document.getElementById( 'sr-noquery-summary' )?.innerHTML;
@@ -178,6 +184,17 @@ function initSearchUI() {
 	if (urlParams.sort) {
 		params.sort = urlParams.sort;
 	}						 
+	// set the custom action cause for the initial search 
+	if ( urlParams.actionCause ) {
+		params.actionCause = urlParams.actionCause;
+
+		// changing the URL without reloading the page to remove actionCause
+		if ( window.history.replaceState ) {
+			var newUrl = new URL( winLoc.href );
+			newUrl.searchParams.delete( 'actionCause' );
+			window.history.replaceState( { path : newUrl.href }, '', newUrl.href );
+		}
+	}
 	
 	// Auto detect relative path from originLevel3
 	if( !params.originLevel3.startsWith( "/" ) && /http|www/.test( params.originLevel3 ) ) {
@@ -191,10 +208,6 @@ function initSearchUI() {
 	}
 	else {
 		originLevel3RelativeUrl = params.originLevel3;
-	}
-
-	if ( !params.endpoints ) {
-		params.endpoints = getOrganizationEndpoints( params.organizationId, 'prod' );
 	}
 
 	// Show error on load if no access token is provided
@@ -277,6 +290,11 @@ function initTpl() {
 					<p>A resolution for the restoration is presently being worked.	We apologize for any inconvenience.</p>
 				</div>`;
 		}
+	}
+
+	if ( !notificationTriggerTemplateHTML ) {
+		notificationTriggerTemplateHTML = 
+			`<section class="alert alert-info">%[notification]</section>`;
 	}
 
 	if ( !querySummaryTemplateHTML ) {
@@ -379,6 +397,14 @@ function initTpl() {
 	if ( !resultsSection ) {
 		resultsSection = document.createElement( "section" );
 		resultsSection.id = resultSectionID;
+	}
+
+	// auto-create notification trigger element
+	if ( !notificationTriggerElement ) {
+		notificationTriggerElement = document.createElement( "div" );
+		notificationTriggerElement.id = "notification-trigger";
+
+		resultsSection.append( notificationTriggerElement );
 	}
 
 	// auto-create query summary element
@@ -782,13 +808,21 @@ function getGMTDate( date ) {
 function initEngine() {
 	headlessEngine = buildSearchEngine( {
 		configuration: {
-			organizationEndpoints: params.endpoints,
 			organizationId: params.organizationId,
 			accessToken: params.accessToken,
 			search: {
 				locale: params.lang,
 				searchHub: params.searchHub,
-				pipeline: params.pipeline
+				pipeline: params.pipeline,
+				...(params.endpoints?.search && { 
+					proxyBaseUrl: params.endpoints.search, 
+				}),
+			},
+			analytics: {
+				analyticsMode: "legacy",
+				...(params.endpoints?.analytics && { 
+					proxyBaseUrl: params.endpoints.analytics, 
+				}),
 			},
 			preprocessRequest: ( request, clientOrigin ) => {
 				try {
@@ -797,6 +831,12 @@ function initEngine() {
 
 						// filter user sensitive content
 						requestContent.originLevel3 = params.originLevel3;
+
+						// override actionCause if present
+						if ( params.actionCause ) {
+							requestContent.actionCause = params.actionCause;
+							params.actionCause = ""; // reset the parameter to avoid polluting future searches with the same action cause
+						}
 
 						// documentAuthor cannot be longer than 128 chars based on search platform
 						if ( requestContent.documentAuthor ) {
@@ -807,7 +847,7 @@ function initEngine() {
 
 						// Event used to expose a data layer when search events occur; useful for analytics
 						const searchEvent = new CustomEvent( "searchEvent", { detail: requestContent } );
-						document.dispatchEvent( searchEvent );
+						baseElement.dispatchEvent( searchEvent );
 					}
 					if ( clientOrigin === 'searchApiFetch' ) {
 						let requestContent = JSON.parse( request.body );
@@ -825,20 +865,27 @@ function initEngine() {
 							requestContent.analytics.originLevel3 = params.originLevel3;
 						}
 
+						// override actionCause if present
+						if ( params.actionCause ) {
+							requestContent.analytics.actionCause = params.actionCause;
+						}
+
 						let q = requestContent.q;
 						requestContent.q = sanitizeQuery( q );
 
 						// Filters out actions history items older than 7 days
-						const actionsHistory = limitCoveoAnalyticsHistory( requestContent.actionsHistory );
-						if ( actionsHistory.length !== requestContent.actionsHistory.length ) {
-							requestContent.actionsHistory = actionsHistory;
-							saveCoveoAnalyticsHistory( actionsHistory );
+						if ( requestContent.actionsHistory ) {
+							const actionsHistory = limitCoveoAnalyticsHistory( requestContent.actionsHistory );
+							if ( actionsHistory.length !== requestContent.actionsHistory.length ) {
+								requestContent.actionsHistory = actionsHistory;
+								saveCoveoAnalyticsHistory( actionsHistory );
+							}
 						}
 						
 						request.body = JSON.stringify( requestContent );
 					}
-				} catch {
-					console.warn( "No Headless Engine Loaded." );
+				} catch ( error ) {
+					console.warn( "preprocessRequest error : " + error.message );
 				}
 
 				return request;
@@ -871,6 +918,7 @@ function initEngine() {
 	didYouMeanController = buildDidYouMean( headlessEngine, { options: { automaticallyCorrectQuery: params.automaticallyCorrectQuery } } );
 	pagerController = buildPager( headlessEngine, { options: { numberOfPages: params.numberOfPages } } );
 	statusController = buildSearchStatus( headlessEngine );
+	notifyTriggerController = buildNotifyTrigger( headlessEngine );
 	
 	if( params.enableSmartSnippets ){
 		smartSnippetController = buildSmartSnippet( headlessEngine );
@@ -1110,6 +1158,7 @@ function initEngine() {
 	unsubscribeQuerySummaryController = querySummaryController.subscribe( () => updateQuerySummaryState( querySummaryController.state ) );
 	unsubscribeDidYouMeanController = didYouMeanController.subscribe( () => updateDidYouMeanState( didYouMeanController.state ) );
 	unsubscribePagerController = pagerController.subscribe( () => updatePagerState( pagerController.state ) );
+	unsubscribeNotifyTriggerController = notifyTriggerController.subscribe( () => updateNotifyTriggerState( notifyTriggerController.state ) );
 	if( params.enableSmartSnippets ) {
 		unsubscribeSmartSnippetController = smartSnippetController.subscribe( () => updateSmartSnippetState( smartSnippetController.state ) );
 		unsubscribeSmartSnippetQuestionListController = smartSnippetQuestionListController.subscribe( () => updateSmartSnippetQuestionListState( smartSnippetQuestionListController.state ) );
@@ -1124,6 +1173,7 @@ function initEngine() {
 		unsubscribeQuerySummaryController?.();
 		unsubscribeDidYouMeanController?.();
 		unsubscribePagerController?.();
+		unsubscribeNotifyTriggerController?.();
 		unsubscribeSmartSnippetController?.();
 		unsubscribeSmartSnippetQuestionListController?.();
 	};
@@ -1432,8 +1482,17 @@ function updateResultListState( newState ) {
 
 			if ( result.raw.hostname && result.raw.displaynavlabel ) {
 				const splittedNavLabel = ( Array.isArray( result.raw.displaynavlabel ) ? result.raw.displaynavlabel[0] : result.raw.displaynavlabel).split( '>' );
-				breadcrumb = '<ol class="location"><li>' + stripHtml( result.raw.hostname ) + 
-					'&nbsp;</li><li>' + stripHtml( splittedNavLabel[splittedNavLabel.length-1] ) + '</li></ol>';
+				const hostname = stripHtml( result.raw.hostname );
+				const lastBreadcrumb = stripHtml( splittedNavLabel[splittedNavLabel.length-1] );
+
+				// If the hostname is already part of the breadcrumb, just show the hostname
+				breadcrumb = '<ol class="location">';
+				if ( lastBreadcrumb.indexOf(hostname) > -1 ){
+					breadcrumb += '<li>' + hostname + '</li>';
+				} else {
+					breadcrumb += '<li>' + hostname + '&nbsp;</li><li>' + lastBreadcrumb + '</li>';
+				}
+				breadcrumb += '</ol>';
 			} else {
 				breadcrumb = '<p class="location"><cite><a href="' + clickUri + '">' + printableUri + '</a></cite></p>';
 			}
@@ -1479,6 +1538,31 @@ function updateResultListState( newState ) {
 
 			resultListElement.appendChild( sectionNode );
 		} );
+	}
+}
+
+// Update notification displayed
+function updateNotifyTriggerState ( newState ) {
+	notificationState = newState;
+
+	if ( notificationState.notifications?.length ) {
+		notificationTriggerElement.innerHTML = notificationTriggerTemplateHTML.replace( "%[notification]", DOMPurify.sanitize( notificationState.notifications[0] ) );
+		notificationTriggerElement.onclick = ( elemClicked ) => {
+			if ( elemClicked.target.tagName.toLowerCase() === 'a' ) {
+				const { logCustomEvent } = loadGenericAnalyticsActions( headlessEngine );
+				const payload = {
+					type: 'queryPipelineNotificationTrigger',
+					meta: { 'triggerLinkUrl': elemClicked.target?.href },
+					evt: 'click'
+				};
+
+				headlessEngine.dispatch( logCustomEvent( payload ) );
+			}
+		};
+		focusToView();
+	}
+	else {
+		notificationTriggerElement.textContent = "";
 	}
 }
 
